@@ -1,10 +1,11 @@
 ## Makefile for libparsec.
 
 MAKE 								:= make
-CXX									:= g++
-CXXFLAGS							:= -Wall -Wextra -std=c++11
+CXX									:= clang++
+CXXFLAGS							:= -Wall -Wextra -std=c++14
 LD									:= g++
 LDFLAGS 							:= -O
+INCLUDE								:= -I .
 
 DEBUG 								:= 1
 ifeq ($(DEBUG), 1)
@@ -14,14 +15,16 @@ else
 endif
 
 ## default target.
-all: test
+all:
 
-test:
-	$(CXX) test.cpp -o test $(CXXFLAGS)
-	./test.exe
-.PHONY: test
+%.out: %.o
+	$(CXX) $^ -o $@ $(CXXFLAGS)
+
+%.o: %.cpp
+	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE)
 
 clean:
-	rm *.exe
+	rm -f *.o
+	rm -f *.out
 .PHONY: clean
 
