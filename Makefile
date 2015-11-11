@@ -2,7 +2,7 @@
 
 MAKE 								:= make
 CXX									:= clang++
-CXXFLAGS							:= -Wall -Wextra -std=c++14
+CXXFLAGS							:= -Wall -Wextra -std=c++11
 LD									:= g++
 LDFLAGS 							:= -O
 INCLUDE								:= -I .
@@ -15,7 +15,11 @@ else
 endif
 
 ## default target.
-all:
+all: clean test
+
+test: test_parsec.out
+	./$<
+.PHONY: test
 
 %.out: %.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
@@ -27,4 +31,3 @@ clean:
 	rm -f *.o
 	rm -f *.out
 .PHONY: clean
-

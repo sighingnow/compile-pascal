@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <functional>
+#include <exception>
 using namespace std;
 
 /**
@@ -30,7 +31,8 @@ struct StreamT {
     int row, column, count;
     StreamT<S, T>(string const name, S source): name(name), source(source) {}
     virtual T head() const = 0;
-    virtual T next() const = 0;
+    virtual void next() const = 0;
+    virtual void next(int const k) const = 0;
     virtual pair<int, int> locate() const = 0;
     virtual StreamT<S, T> tail() const = 0;
     virtual StreamT<S, T> take(int k) const = 0;
@@ -45,30 +47,30 @@ template<>
 struct StreamT<string, char> {
     string const name;
     string const source;
-    int row, column, count;
-    StreamT(string const name, string source): name(name), source(source), row(1), column(1), count(1) {}
+    int row, column;
+    size_t count;
+    StreamT(string const name, string source): name(name), source(source), row(1), column(1), count(0) {}
     virtual char head() const {
         return source.at(count);
     }
-    virtual char next() {
-        char c = source.at(count);
-        count += 1;
-        if (c == '\n') {
-            row += 1, column = 1;
+    virtual void next() {
+        if (this->head() == '\n') { row += 1, column = 1; }
+        else { column += 1; }
+        count = count + 1;
+    }
+    virtual void next(int k) {
+        while(count < source.length() && k--) {
+            this->next();
         }
-        else {
-            column += 1;
-        }
-        return c;
     }
     virtual char at(int idx) const {
-        return source.at(idx);
+        return source.at(count + idx);
     }
     virtual pair<int, int> locate() const {
         return ::make_pair(this->row, this->column);
     }
     virtual StreamT tail() const {
-        return StreamT(name, source.substr(count+1));
+        return StreamT(name, source.substr(count + 1));
     }
     virtual StreamT take(int k) const {
         return StreamT(name, source.substr(count, k));
@@ -118,39 +120,55 @@ struct ValueT {
     }
 };
 
+// template<typename V>
+struct ParseError: public exception {
+    string const sname, message;
+    pair<int, int> const loc;
+    // V const actual, expected;
+    ParseError(string const & sname, string const & message, pair<int, int> const loc): exception(), sname(sname), message(message), loc(loc) {}
+    virtual const char *what() const noexcept { return (sname + ": " + message).c_str(); }
+};
+
 /**
  * Parser model, wraps a function parse a Value object from a stream at specified position.
  */
 template<typename S, typename V>
 struct ParsecT {
     constexpr ParsecT<S, V>() {}
-    virtual string name() const { return "ParsecT"; };
-    ValueT<V> parse(S const text) const {
-        pair<int, pair<V, V>> res = (*this)(text);
-        return ValueT<V>(text.name, res.first!=-1, text.locate(), res.first, res.second.first, res.second.second);
+    virtual string name() const = 0;
+    ValueT<V> parse(S text) const {
+        pair<int, int> loc = text.locate();
+        pair<int, pair<V, V>> res;
+        try { // try exception throwed during operating the stream object.
+            res = (*this)(text);
+        } catch (std::exception & e) {
+            res = ::pair<int, pair<V, V>>(0, pair<V, V>());
+        }
+        text.next(res.first); // move ahead offset.
+        return ValueT<V>(text.name, res.first != 0, loc, res.first, res.second.first, res.second.second);
     }
     // return <offset, <actual, expected>>
-    virtual pair<int, pair<V, V>> operator () (S const) const { return ::pair<int, pair<V, V>>(); };
+    virtual pair<int, pair<V, V>> operator () (S const) const = 0;
 };
 
 /**
  * Some parsers for parse characters. (use constexpr for performance improvement)
  */
-struct anyc: public ParsecT<StreamT<string, char>, char> {
-    constexpr anyc(): ParsecT() {}
+struct any: public ParsecT<StreamT<string, char>, char> {
+    constexpr any(): ParsecT() {}
     string name() const override { return "any character"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(c != EOF ? (1) : (-1), make_pair(c, c));
+        return make_pair(c != EOF ? 1 : 0, make_pair(c, c));
     }
-} constexpr anyc;
+} constexpr any;
 
 struct blank: public ParsecT<StreamT<string, char>, char> {
     constexpr blank(): ParsecT() {}
     string name() const override { return "blank"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isblank(c) ? (1) : (-1), make_pair(c, ' '));
+        return make_pair(::isblank(c) ? 1 : 0, make_pair(c, ' '));
     }
 } constexpr blank;
 
@@ -159,7 +177,7 @@ struct cntrl: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "cntrl"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::iscntrl(c) ? (1) : (-1), make_pair(c, '\x94'));
+        return make_pair(::iscntrl(c) ? 1 : 0, make_pair(c, '\x94'));
     }
 } constexpr cntrl;
 
@@ -168,7 +186,7 @@ struct space: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "space"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isspace(c) ? (1) : (-1), make_pair(c, ' '));
+        return make_pair(::isspace(c) ? 1 : 0, make_pair(c, ' '));
     }
 } constexpr space;
 
@@ -177,7 +195,7 @@ struct eof: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "eof"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(c == EOF ? (1) : (-1), make_pair(c, EOF));
+        return make_pair(c == EOF ? 1 : 0, make_pair(c, EOF));
     }
 } constexpr eof;
 
@@ -186,7 +204,7 @@ struct eol: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "eol"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(c == '\n' ? (1) : (-1), make_pair(c, '\n'));
+        return make_pair(c == '\n' ? 1 : 0, make_pair(c, '\n'));
     }
 } constexpr eol;
 
@@ -195,7 +213,7 @@ struct tab: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "tab"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(c == '\t' ? (1) : (-1), make_pair(c, '\t'));
+        return make_pair(c == '\t' ? 1 : 0, make_pair(c, '\t'));
     }
 } constexpr tab;
 
@@ -204,7 +222,7 @@ struct punct: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "punctuation"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isspace(c) ? (1) : (-1), make_pair(c, '.'));
+        return make_pair(::isspace(c) ? 1 : 0, make_pair(c, '.'));
     }
 } constexpr punct;
 
@@ -213,7 +231,7 @@ struct digit: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "digit"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isdigit(c) ? (1) : (-1), make_pair(c, '0'));
+        return make_pair(::isdigit(c) ? 1 : 0, make_pair(c, '0'));
     }
 } constexpr digit;
 
@@ -222,7 +240,7 @@ struct xdigit: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "xdigit"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isxdigit(c) ? (1) : (-1), make_pair(c, 'x'));
+        return make_pair(::isxdigit(c) ? 1 : 0, make_pair(c, 'x'));
     }
 } constexpr xdigit;
 
@@ -231,7 +249,7 @@ struct upper: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "upper"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isupper(c) ? (1) : (-1), make_pair(c, 'u'));
+        return make_pair(::isupper(c) ? 1 : 0, make_pair(c, 'u'));
     }
 } constexpr upper;
 
@@ -240,7 +258,7 @@ struct lower: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "lower"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::islower(c) ? (1) : (-1), make_pair(c, 'l'));
+        return make_pair(::islower(c) ? 1 : 0, make_pair(c, 'l'));
     }
 } constexpr lower;
 
@@ -249,7 +267,7 @@ struct alpha: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "alpha"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isalpha(c) ? (1) : (-1), make_pair(c, 'a'));
+        return make_pair(::isalpha(c) ? 1 : 0, make_pair(c, 'a'));
     }
 } constexpr alpha;
 
@@ -258,7 +276,7 @@ struct alnum: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "alnum"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isalnum(c) ? (1) : (-1), make_pair(c, 'n'));
+        return make_pair(::isalnum(c) ? 1 : 0, make_pair(c, 'n'));
     }
 } constexpr alnum;
 
@@ -267,7 +285,7 @@ struct print: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "print"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isprint(c) ? (1) : (-1), make_pair(c, 'p'));
+        return make_pair(::isprint(c) ? 1 : 0, make_pair(c, 'p'));
     }
 } constexpr print;
 
@@ -276,7 +294,7 @@ struct graph: public ParsecT<StreamT<string, char>, char> {
     string name() const override { return "graph"; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(::isgraph(c) ? (1) : (-1), make_pair(c, 'g'));
+        return make_pair(::isgraph(c) ? 1 : 0, make_pair(c, 'g'));
     }
 } constexpr graph;
 
@@ -284,11 +302,11 @@ class character: public ParsecT<StreamT<string, char>, char> {
     char _c;
 public:
     character(): ParsecT(), _c('\0') {}
-    string name() const override { return "'" + string(1, _c) + "'"; }
+    string name() const override { return "character '" + string(1, _c) + "'"; }
     virtual character operator () (char const c) { _c = c; return *this; }
     virtual pair<int, pair<char, char>> operator () (StreamT<string, char> const text) const override {
         char c = text.head();
-        return make_pair(_c == c ? (1) : (-1), make_pair(c, _c));
+        return make_pair(_c == c ? 1 : 0, make_pair(c, _c));
     }
 } character;
 
@@ -296,12 +314,13 @@ class string_literal: public ParsecT<StreamT<string, char>, string> {
     string _s;
 public:
     string_literal(): ParsecT(), _s("\0") {}
-    string name() const override { return "\"" + _s + "\""; }
+    string name() const override { return "string \"" + _s + "\""; }
     virtual string_literal operator () (string const s) { _s = s; return *this; }
     virtual pair<int, pair<string, string>> operator () (StreamT<string, char> const text) const override {
         string s = text.take(_s.length()).extract();
-        return make_pair(_s == s ? (1) : (-1), make_pair(s, _s));
+        return make_pair(_s == s ? s.length() : 0, make_pair(s, _s));
     }
 } string_literal;
+
 
 
