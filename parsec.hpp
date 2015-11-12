@@ -7,6 +7,9 @@
  *
  *********************************************************/
 
+#ifndef __PARSEC_HPP__
+#define __PARSEC_HPP__
+
 #include <iostream>
 #include <string>
 #include <functional>
@@ -630,3 +633,5 @@ public:
 };
 
 
+
+#endif /* __PARSEC_HPP__ */
