@@ -53,12 +53,22 @@ TEST_CASE("Test all primitive parsers form characters.") {
         auto s1 = "abcdeabcde";
         auto res1 = parse_tool(s1);
         REQUIRE(res1.status == true);
-        REQUIRE(res1.loc == make_pair(1, 1));
         REQUIRE(res1.actual == "abcde");
 
         auto s2 = "x";
         auto res2 = parse_tool(s2);
         REQUIRE(res2.status == false);
+    }
+
+    SECTION("test spaces") {
+        auto parser = spaces;
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
+
+        string s1 = "          ";
+        REQUIRE(parse_tool(s1).len == s1.length());
+
+        string s2 = "     abcd";
+        REQUIRE(parse_tool(s2).len == 5);
     }
 }
 
@@ -139,7 +149,7 @@ TEST_CASE("Parser combinators.") {
 
 TEST_CASE("Repeat combinators.") {
 
-    function<string (vector<char>)> fn = [](const vector<char> & vec) {
+    function<string (vector<char>)> fn = [](vector<char> const & vec) {
         string ans; for (auto c: vec) { ans.push_back(c); } return ans;
     };
 

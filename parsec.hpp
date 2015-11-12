@@ -17,6 +17,7 @@
 #include <vector>
 using namespace std;
 
+// drop string without exception.
 string drop(string const & text, int const & k) {
     if ((int)text.length() < k) {
         return "";
@@ -26,240 +27,82 @@ string drop(string const & text, int const & k) {
     }
 }
 
+
 /**
- * Some parsers for parse characters. (use constexpr for performance improvement)
+ * The result representation of a parser. `Success` and `Failure` are used to construct Value object, while
+ * `Aggregate` is used to accmulate two Value object into one.
  */
-struct any {
-    using parser_type = char;
-    constexpr any() {}
-    string name() const { return "any character"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(c != EOF ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr any;
+template<typename V>
+struct ValueT {
+    bool const status;
+    pair<int, int> loc;
+    int len;
+    V const actual;
+    string expected;
 
-struct blank {
-    using parser_type = char;
-    constexpr blank() {}
-    string name() const { return "blank"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isblank(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr blank;
+    string to_string(int n) const { return ::to_string(n); }
+    string to_string(char c) const { return string(1, c); }
+    string to_string(string s) const { return s; }
+    string to_string(vector<char> vec) const { string ans = "vector char: "; for (char c: vec) { ans.push_back(c); ans.push_back(','); } return ans; }
+    string to_string(vector<string> vec) const { string ans = "vector string: "; for (string s: vec) { ans += s + ","; } return ans; }
 
-struct cntrl {
-    using parser_type = char;
-    constexpr cntrl() {}
-    string name() const { return "cntrl"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::iscntrl(c) ? (1) : (-1), make_pair(c, name() + "\\x94"));
+    string name() const {
+        return "stream @ " + ::to_string(loc.first) + ":" + ::to_string(loc.second)
+            + ", " + (status ? "true" : "false") + ", length: " + ::to_string(len) + "\n"
+            + "    actual:   " + to_string(actual) + "\n"
+            + "    expected: " + to_string(expected) + "\n";
     }
-} constexpr cntrl;
 
-struct space {
-    using parser_type = char;
-    constexpr space() {}
-    string name() const { return "space"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isspace(c) ? (1) : (-1), make_pair(c, name()));
+    ValueT<V>(bool status, pair<int, int> loc, int len, V const & actual, string const & expected)
+        : status(status), loc(loc), len(len), actual(actual), expected(expected) {}
+
+    static ValueT<V> Success(pair<int, int> loc, int len, V const & actual, string const & expected) {
+        return ValueT<V>(true, loc, len, actual, expected);
     }
-} constexpr space;
 
-struct eof {
-    using parser_type = char;
-    constexpr eof() {}
-    string name() const { return "eof"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(c == EOF ? (1) : (-1), make_pair(c, name()));
+    static ValueT<V> Failure(pair<int, int> loc, int len, V const & actual, string const & expected) {
+        return ValueT<V>(false, loc, len, actual, expected);
     }
-} constexpr eof;
+};
 
-struct eol {
-    using parser_type = char;
-    constexpr eol() {}
-    string name() const { return "eol"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(c == '\n' ? (1) : (-1), make_pair(c, name() + "\\n"));
-    }
-} constexpr eol;
 
-struct tab {
-    using parser_type = char;
-    constexpr tab() {}
-    string name() const { return "tab"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(c == '\t' ? (1) : (-1), make_pair(c, name() + "\\t"));
-    }
-} constexpr tab;
+struct ParseError: public exception {
+    string const sname, message;
+    pair<int, int> const loc;
+    ParseError(string const & sname, string const & message, pair<int, int> const loc): exception(), sname(sname), message(message), loc(loc) {}
+    const char *what() const noexcept { return (sname + ": " + message).c_str(); }
+};
 
-struct punct {
-    using parser_type = char;
-    constexpr punct() {}
-    string name() const { return "punctuation"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isspace(c) ? (1) : (-1), make_pair(c, name() + "."));
-    }
-} constexpr punct;
 
-struct digit {
-    using parser_type = char;
-    constexpr digit() {}
-    string name() const { return "digit"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isdigit(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr digit;
+/**
+ * Parser model, wraps a function parse a Value object from a stream at specified position.
+ */
 
-struct xdigit {
-    using parser_type = char;
-    constexpr xdigit() {}
-    string name() const { return "xdigit"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isxdigit(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr xdigit;
-
-struct upper {
-    using parser_type = char;
-    constexpr upper() {}
-    string name() const { return "upper"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isupper(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr upper;
-
-struct lower {
-    using parser_type = char;
-    constexpr lower() {}
-    string name() const { return "lower"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::islower(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr lower;
-
-struct alpha {
-    using parser_type = char;
-    constexpr alpha() {}
-    string name() const { return "alpha"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isalpha(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr alpha;
-
-struct alnum {
-    using parser_type = char;
-    constexpr alnum() {}
-    string name() const { return "alnum"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isalnum(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr alnum;
-
-struct print {
-    using parser_type = char;
-    constexpr print() {}
-    string name() const { return "print"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isprint(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr print;
-
-struct graph {
-    using parser_type = char;
-    constexpr graph() {}
-    string name() const { return "graph character"; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(::isgraph(c) ? (1) : (-1), make_pair(c, name()));
-    }
-} constexpr graph;
-
-class one_of {
-    string _options;
+template<typename P>
+struct ParsecT {
+private:
+    P const parser;
 public:
-    using parser_type = char;
-    one_of() {}
-    string name() const { return "one of " + _options; }
-    one_of operator () (string const & options) { _options = options; return *this; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(_options.find(c) != _options.npos ? (1) : (-1), make_pair(c, name()));
+    using V = typename P::parser_type;
+    constexpr ParsecT<P>(P parser): parser(parser) {}
+    string name() const { return "ParsecT"; }
+    ValueT<V> parse(string const & text) const {
+        pair<int, int> loc = make_pair(1, 1);
+        pair<int, pair<V, string>> res;
+        try { // try exception throwed during operating the stream object.
+            res = parser(text);
+        } catch (std::exception & e) {
+            cout << "!!!Exception: " + string(e.what()) << endl; 
+            res = ::pair<int, pair<V, string>>(-1, pair<V, string>());
+        }
+        // text = text.substr(res.first); // move ahead offset.
+        return ValueT<V>(res.first != -1, loc, res.first, res.second.first, res.second.second);
     }
-} one_of;
+    ValueT<V> operator () (string const & text) const {
+        return this->parse(text);
+    } 
+};
 
-class no_one_of {
-    string _options;
-public:
-    using parser_type = char;
-    no_one_of() {}
-    string name() const { return "no one of " + _options; }
-    no_one_of operator () (string const & options) { _options = options; return *this; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(_options.find(c) == _options.npos ? (1) : (-1), make_pair(c, name()));
-    }
-} no_one_of;
-
-class character {
-    char _c;
-public:
-    using parser_type = char;
-    character() {}
-    string name() const { return "character '" + string(1, _c) + "'"; }
-    character operator () (char const & c) { _c = c; return *this; }
-    pair<int, pair<char, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
-        char c = text.at(0);
-        return make_pair(_c == c ? (1) : (-1), make_pair(c, name()));
-    }
-} character;
-
-class string_literal {
-    string _s;
-public:
-    using parser_type = string;
-    string_literal() {}
-    string name() const { return "string \"" + _s + "\""; }
-    string_literal operator () (string const & s) { _s = s; return *this; }
-    pair<int, pair<string, string>> operator () (string const & text) const {
-        if (text.empty()) { return make_pair(-1, ::pair<string, string>()); }
-        string s = text.substr(0, _s.length());
-        return make_pair(_s == s ? s.length() : (-1), make_pair(s, name()));
-    }
-} string_literal;
 
 /**
  * Parser combinators.
@@ -564,78 +407,255 @@ constexpr mapfn<PA, T> const operator / (PA const & pa, function<T(typename PA::
     return mapfn<PA, T>(pa, fn);
 }
 
-/**
- * The result representation of a parser. `Success` and `Failure` are used to construct Value object, while
- * `Aggregate` is used to accmulate two Value object into one.
- */
-template<typename V>
-struct ValueT {
-    bool const status;
-    pair<int, int> loc;
-    int len;
-    V const actual;
-    string expected;
-
-    string to_string(int n) const { return ::to_string(n); }
-    string to_string(char c) const { return string(1, c); }
-    string to_string(string s) const { return s; }
-    string to_string(vector<char> vec) const { string ans = "vector char: "; for (char c: vec) { ans.push_back(c); ans.push_back(','); } return ans; }
-    string to_string(vector<string> vec) const { string ans = "vector string: "; for (string s: vec) { ans += s + ","; } return ans; }
-
-    string name() const {
-        return "stream @ " + ::to_string(loc.first) + ":" + ::to_string(loc.second)
-            + ", " + (status ? "true" : "false") + ", length: " + ::to_string(len) + "\n"
-            + "    actual:   " + to_string(actual) + "\n"
-            + "    expected: " + to_string(expected) + "\n";
-    }
-
-    ValueT<V>(bool status, pair<int, int> loc, int len, V const & actual, string const & expected)
-        : status(status), loc(loc), len(len), actual(actual), expected(expected) {}
-
-    static ValueT<V> Success(pair<int, int> loc, int len, V const & actual, string const & expected) {
-        return ValueT<V>(true, loc, len, actual, expected);
-    }
-
-    static ValueT<V> Failure(pair<int, int> loc, int len, V const & actual, string const & expected) {
-        return ValueT<V>(false, loc, len, actual, expected);
-    }
-};
-
-// template<typename V>
-struct ParseError: public exception {
-    string const sname, message;
-    pair<int, int> const loc;
-    ParseError(string const & sname, string const & message, pair<int, int> const loc): exception(), sname(sname), message(message), loc(loc) {}
-    const char *what() const noexcept { return (sname + ": " + message).c_str(); }
-};
 
 /**
- * Parser model, wraps a function parse a Value object from a stream at specified position.
+ * Some parsers for parse characters. (use constexpr for performance improvement)
  */
-template<typename P>
-struct ParsecT {
-private:
-    P const parser;
+
+struct any {
+    using parser_type = char;
+    constexpr any() {}
+    string name() const { return "any character"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(c != EOF ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr any;
+
+struct blank {
+    using parser_type = char;
+    constexpr blank() {}
+    string name() const { return "blank"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isblank(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr blank;
+
+struct cntrl {
+    using parser_type = char;
+    constexpr cntrl() {}
+    string name() const { return "cntrl"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::iscntrl(c) ? (1) : (-1), make_pair(c, name() + "\\x94"));
+    }
+} constexpr cntrl;
+
+struct space {
+    using parser_type = char;
+    constexpr space() {}
+    string name() const { return "space"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isspace(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr space;
+
+struct spaces {
+    using parser_type = string;
+    constexpr spaces() {}
+    string name() const { return "spaces"; }
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        function<string (vector<char>)> fn = [](vector<char> const & vec) {
+            string ans; for (auto c: vec) { ans.push_back(c); } return ans;
+        };
+        auto parser = (++space) / fn;
+        return parser(text);
+    }
+} constexpr spaces;
+
+struct eof {
+    using parser_type = char;
+    constexpr eof() {}
+    string name() const { return "eof"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(c == EOF ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr eof;
+
+struct eol {
+    using parser_type = char;
+    constexpr eol() {}
+    string name() const { return "eol"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(c == '\n' ? (1) : (-1), make_pair(c, name() + "\\n"));
+    }
+} constexpr eol;
+
+struct tab {
+    using parser_type = char;
+    constexpr tab() {}
+    string name() const { return "tab"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(c == '\t' ? (1) : (-1), make_pair(c, name() + "\\t"));
+    }
+} constexpr tab;
+
+struct punct {
+    using parser_type = char;
+    constexpr punct() {}
+    string name() const { return "punctuation"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isspace(c) ? (1) : (-1), make_pair(c, name() + "."));
+    }
+} constexpr punct;
+
+struct digit {
+    using parser_type = char;
+    constexpr digit() {}
+    string name() const { return "digit"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isdigit(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr digit;
+
+struct xdigit {
+    using parser_type = char;
+    constexpr xdigit() {}
+    string name() const { return "xdigit"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isxdigit(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr xdigit;
+
+struct upper {
+    using parser_type = char;
+    constexpr upper() {}
+    string name() const { return "upper"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isupper(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr upper;
+
+struct lower {
+    using parser_type = char;
+    constexpr lower() {}
+    string name() const { return "lower"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::islower(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr lower;
+
+struct alpha {
+    using parser_type = char;
+    constexpr alpha() {}
+    string name() const { return "alpha"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isalpha(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr alpha;
+
+struct alnum {
+    using parser_type = char;
+    constexpr alnum() {}
+    string name() const { return "alnum"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isalnum(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr alnum;
+
+struct print {
+    using parser_type = char;
+    constexpr print() {}
+    string name() const { return "print"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isprint(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr print;
+
+struct graph {
+    using parser_type = char;
+    constexpr graph() {}
+    string name() const { return "graph character"; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(::isgraph(c) ? (1) : (-1), make_pair(c, name()));
+    }
+} constexpr graph;
+
+class one_of {
+    string _options;
 public:
-    using V = typename P::parser_type;
-    constexpr ParsecT<P>(P parser): parser(parser) {}
-    string name() const { return "ParsecT"; }
-    ValueT<V> parse(string const & text) const {
-        pair<int, int> loc = make_pair(1, 1);
-        pair<int, pair<V, string>> res;
-        try { // try exception throwed during operating the stream object.
-            res = parser(text);
-        } catch (std::exception & e) {
-            cout << "!!!Exception: " + string(e.what()) << endl; 
-            res = ::pair<int, pair<V, string>>(-1, pair<V, string>());
-        }
-        // text = text.substr(res.first); // move ahead offset.
-        return ValueT<V>(res.first != -1, loc, res.first, res.second.first, res.second.second);
+    using parser_type = char;
+    one_of() {}
+    string name() const { return "one of " + _options; }
+    one_of operator () (string const & options) { _options = options; return *this; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(_options.find(c) != _options.npos ? (1) : (-1), make_pair(c, name()));
     }
-    ValueT<V> operator () (string const & text) const {
-        return this->parse(text);
-    } 
-};
+} one_of;
+
+class no_one_of {
+    string _options;
+public:
+    using parser_type = char;
+    no_one_of() {}
+    string name() const { return "no one of " + _options; }
+    no_one_of operator () (string const & options) { _options = options; return *this; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(_options.find(c) == _options.npos ? (1) : (-1), make_pair(c, name()));
+    }
+} no_one_of;
+
+class character {
+    char _c;
+public:
+    using parser_type = char;
+    character() {}
+    string name() const { return "character '" + string(1, _c) + "'"; }
+    character operator () (char const & c) { _c = c; return *this; }
+    pair<int, pair<char, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<char, string>()); }
+        char c = text.at(0);
+        return make_pair(_c == c ? (1) : (-1), make_pair(c, name()));
+    }
+} character;
+
+class string_literal {
+    string _s;
+public:
+    using parser_type = string;
+    string_literal() {}
+    string name() const { return "string \"" + _s + "\""; }
+    string_literal operator () (string const & s) { _s = s; return *this; }
+    pair<int, pair<string, string>> operator () (string const & text) const {
+        if (text.empty()) { return make_pair(-1, ::pair<string, string>()); }
+        string s = text.substr(0, _s.length());
+        return make_pair(_s == s ? s.length() : (-1), make_pair(s, name()));
+    }
+} string_literal;
 
 
 
