@@ -228,6 +228,22 @@ TEST_CASE("Repeat combinators.") {
         REQUIRE(parse_tool("x y z   z").actual == "x y z");
         REQUIRE(parse_tool("123456").actual == "12345");
     }
+
+    SECTION("Test sepby1.") {
+        auto parser = (character('x') % character('y')) / fn;
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
+
+        auto res1 = parse_tool("xyxyxyx");
+        REQUIRE(res1.status == true);
+        REQUIRE(res1.actual == "xxxx");
+        REQUIRE(res1.len == 7);
+
+
+        auto res2 = parse_tool("xyxyxyxy");
+        REQUIRE(res2.status == true);
+        REQUIRE(res2.actual == "xxxx");
+        REQUIRE(res2.len == 7);
+    }
 }
 
 

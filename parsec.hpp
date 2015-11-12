@@ -401,6 +401,31 @@ constexpr countk<PA> const operator * (PA const & pa, int const & k) {
     return countk<PA>(pa, k);
 }
 
+// sepby1 p sep parses one or more occurrences of p, separated by sep. Returns a vector of values returned by p.
+template<typename P, typename SEP>
+struct sepby1 {
+private:
+    P const p;
+    SEP const sep;
+public:
+    using parser_type = vector<typename P::parser_type>;
+    constexpr sepby1(P const & p, SEP const & sep): p(p), sep(sep) {}
+    string name() const { return "one or more occurrences of p, separated by sep."; }
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        auto res = (p + (++(sep >> p)))(text);
+        string description = res.second.second;
+        parser_type vec = res.second.first.second;
+        auto firstp = res.second.first.first;
+        vec.insert(vec.begin(), firstp);
+        return make_pair(res.first, make_pair(vec, description));
+    }
+};
+// operator '%'
+template<typename P, typename SEP>
+constexpr sepby1<P, SEP> const operator % (P const & p, SEP const & sep) {
+    return sepby1<P, SEP>(p, sep);
+}
+
 template<typename PA, typename T>
 class mapfn {
 public:
