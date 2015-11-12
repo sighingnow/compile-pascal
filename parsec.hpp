@@ -120,7 +120,7 @@ public:
     pair<int, pair<parser_type, string>> operator () (string const & text) const {
         auto res1 = pa(text);
         if (res1.first == -1) {
-            return res1;
+            return make_pair(-1, ::pair<parser_type, string>());
         }
         auto res2 = pb(drop(text, res1.first));
         if (res2.first == -1) {
@@ -258,7 +258,7 @@ public:
         }
         auto res2 = pb(drop(text, res1.first));
         if (res2.first == -1) {
-            return res2;
+            return make_pair(-1, ::pair<parser_type, string>());
         }
         // the `skip` combinator DOES consume the end flag. see also `ends_with` combinator.
         return make_pair(res1.first + res2.first, res1.second);
@@ -286,7 +286,7 @@ public:
         }
         auto res2 = pb(drop(text, res1.first));
         if (res2.first == -1) {
-            return res2;
+            return make_pair(-1, ::pair<parser_type, string>());
         }
         // the `ends_with` combinator DOES NOT consume the end flag. see also `skip` combinator.
         return res1;
