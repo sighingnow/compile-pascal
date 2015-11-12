@@ -302,7 +302,7 @@ public:
     using parser_type = vector<typename PA::parser_type>;
     constexpr times(PA const & pa, int const & mint, int const & maxt): pa(pa), mint(mint), maxt(maxt) {}
     string name() const { return "repeat a parser many times."; }
-    virtual pair<int, pair<parser_type, string>> operator () (string const & text) const {
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
         int cnt = 0, offset = 0;
         parser_type actual;
         string expected;
@@ -329,11 +329,16 @@ public:
 };
 
 template<typename PA>
-struct optional: public times<PA> {
+struct optional {
+private:
+    PA const pa;
 public:
     using parser_type = vector<typename PA::parser_type>;
-    constexpr optional(PA const & pa): times<PA>(pa, 0, 1) {}
+    constexpr optional(PA const & pa): pa(pa) {}
     string name() const { return "optional: repeat 0 or 1 times."; }
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        return times<PA>(pa, 0, 1)(text);
+    }
 };
 // operator '~'
 template<typename PA>
@@ -342,11 +347,16 @@ constexpr optional<PA> const operator ~ (PA const & pa) {
 }
 
 template<typename PA>
-struct many: public times<PA> {
+struct many {
+private:
+    PA const pa;
 public:
     using parser_type = vector<typename PA::parser_type>;
-    constexpr many(PA const & pa): times<PA>(pa, 0, 0x7fffffff) {}
+    constexpr many(PA const & pa): pa(pa) {}
     string name() const { return "many: repeat 0 or more times."; }
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        return times<PA>(pa, 0, 0x7fffffff)(text);
+    }
 };
 // operator '++()'
 template<typename PA>
@@ -355,11 +365,16 @@ constexpr many<PA> const operator ++ (PA const & pa) {
 }
 
 template<typename PA>
-struct many1: public times<PA> {
+struct many1 {
+private:
+    PA const pa;
 public:
     using parser_type = vector<typename PA::parser_type>;
-    constexpr many1(PA const & pa): times<PA>(pa, 1, 0x7fffffff) {}
+    constexpr many1(PA const & pa): pa(pa) {}
     string name() const { return "many1: repeat 1 or more times."; }
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        return times<PA>(pa, 1, 0x7fffffff)(text);
+    }
 };
 // operator '()++'
 template<typename PA>
@@ -368,11 +383,17 @@ constexpr many1<PA> const operator ++ (PA const & pa, int) {
 }
 
 template<typename PA>
-struct countk: public times<PA> {
+struct countk {
+private:
+    PA const pa;
+    int const k;
 public:
     using parser_type = vector<typename PA::parser_type>;
-    constexpr countk(PA const & pa, const int & k): times<PA>(pa, k, k) {}
+    constexpr countk(PA const & pa, const int & k): pa(pa), k(k) {}
     string name() const { return "countk: repeat exactly k times."; }
+    pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        return times<PA>(pa, k, k)(text);
+    }
 };
 // operator '*'
 template<typename PA>

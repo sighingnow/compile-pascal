@@ -65,7 +65,7 @@ TEST_CASE("Test all primitive parsers form characters.") {
         auto parse_tool = ParsecT<decltype(parser)>(parser);
 
         string s1 = "          ";
-        REQUIRE(parse_tool(s1).len == s1.length());
+        REQUIRE(parse_tool(s1).len == (int)s1.length());
 
         string s2 = "     abcd";
         REQUIRE(parse_tool(s2).len == 5);
