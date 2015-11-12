@@ -277,6 +277,9 @@ public:
             return res1;
         }
         auto res2 = pb(drop(text, res1.first));
+        if (res2.first == -1) {
+            return res2;
+        }
         return make_pair(res1.first + res2.first, res2.second);
     }
 };
@@ -357,7 +360,7 @@ public:
             return make_pair(-1, make_pair(actual, expected));
         }
         else {
-            return make_pair(res1.first + res2.first, actual, expected);
+            return make_pair(res1.first + res2.first, make_pair(actual, expected));
         }
     }
 };
