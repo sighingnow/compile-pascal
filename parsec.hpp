@@ -187,26 +187,23 @@ private:
     PA const pa;
     PB const pb;
 public:
-    using parser_type = vector<typename PA::parser_type>;
+    using parser_type = pair<typename PA::parser_type, typename PB::parser_type>;
     constexpr joint(PA const & pa, PB const & pb): pa(pa), pb(pb) {}
     string name() const { return "joint two parser."; }
     pair<int, pair<parser_type, string>> operator () (string const & text) const {
-        parser_type actual;
         string expected;
         auto res1 = pa(text);
-        actual.push_back(res1.second.first);
         expected += res1.second.second + ", ";
         if (res1.first == -1) {
-            return make_pair(-1, make_pair(actual, expected));
+            return make_pair(-1, make_pair(parser_type(), expected));
         }
         auto res2 = pb(drop(text, res1.first));
-        actual.push_back(res2.second.first);
         expected += res2.second.second + ", ";
         if (res2.first == -1) {
-            return make_pair(-1, make_pair(actual, expected));
+            return make_pair(-1, make_pair(parser_type(), expected));
         }
         else {
-            return make_pair(res1.first + res2.first, make_pair(actual, expected));
+            return make_pair(res1.first + res2.first, make_pair(make_pair(res1.second.first, res2.second.first), expected));
         }
     }
 };
@@ -231,9 +228,7 @@ public:
         if (res1.first != -1 && res2.first == -1) {
             return res1;
         }
-        else {
-            return make_pair(res1.first, make_pair(res1.second.first, "except " + res2.second.second + " from " + res1.second.second));
-        }
+        return make_pair(-1, make_pair(res1.second.first, "except " + res2.second.second + " from " + res1.second.second));
     }
 };
 // operator '-'

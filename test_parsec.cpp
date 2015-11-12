@@ -111,9 +111,8 @@ TEST_CASE("Parser combinators.") {
         auto res1 = parse_tool("xy");
         REQUIRE(res1.status == true);
         REQUIRE(res1.len == 2);
-        REQUIRE(res1.actual.size() == 2);
-        REQUIRE(res1.actual[0] == 'x');
-        REQUIRE(res1.actual[1] == 'y');
+        REQUIRE(res1.actual.first == 'x');
+        REQUIRE(res1.actual.second == 'y');
     }
 
     SECTION("Skip specified parser.") {
@@ -135,8 +134,8 @@ TEST_CASE("Parser combinators.") {
 
         auto res1 = parse_tool("xyab");
         REQUIRE(res1.status == true);
-        REQUIRE(res1.actual[0] == 'x');
-        REQUIRE(res1.actual[1] == 'a');
+        REQUIRE(res1.actual.first == 'x');
+        REQUIRE(res1.actual.second == 'a');
         REQUIRE(res1.len == 4);
 
         auto res2 = parse_tool("xzab");
@@ -144,6 +143,22 @@ TEST_CASE("Parser combinators.") {
 
         auto res3 = parse_tool("xyac");
         REQUIRE(res3.status == false);
+    }
+
+    SECTION("Except combinator.") {
+        auto parser = (character('x') | character('y') | character('z')) - character('y');
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
+
+        auto res1 = parse_tool("x");
+        REQUIRE(res1.status == true);
+        REQUIRE(res1.actual == 'x');
+
+        auto res2 = parse_tool("y");
+        REQUIRE(res2.status == false);
+
+        auto res3 = parse_tool("z");
+        REQUIRE(res3.status == true);
+        REQUIRE(res3.actual == 'z');
     }
 }
 
