@@ -14,7 +14,7 @@ else
 	CXXFLAGS						+= -static -O3 -DNDEBUG
 endif
 
-UTILS								:= pl0_parser.o
+UTILS								:= 
 
 ## default target.
 all: clean test
