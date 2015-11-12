@@ -497,6 +497,11 @@ public:
     constexpr optional(PA const & pa): times<PA>(pa, 0, 1) {}
     string name() const { return "optional: repeat 0 or 1 times."; }
 };
+// operator '~'
+template<typename PA>
+constexpr optional<PA> const operator ~ (PA const & pa) {
+    return optional<PA>(pa);
+}
 
 template<typename PA>
 struct many: public times<PA> {
