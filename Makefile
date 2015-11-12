@@ -14,12 +14,12 @@ else
 	CXXFLAGS						+= -static -O3 -DNDEBUG
 endif
 
-UTILS								:= 
+UTILS								:= pl0_parser.o
 
 ## default target.
 all: clean test
 
-test:
+test: test_pl0_parser.out
 	$(foreach case, $^, ./$(case))
 .PHONY: test
 	
