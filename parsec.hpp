@@ -333,11 +333,12 @@ struct optional {
 private:
     PA const pa;
 public:
-    using parser_type = vector<typename PA::parser_type>;
+    using parser_type = typename PA::parser_type;
     constexpr optional(PA const & pa): pa(pa) {}
     string name() const { return "optional: repeat 0 or 1 times."; }
     pair<int, pair<parser_type, string>> operator () (string const & text) const {
-        return times<PA>(pa, 0, 1)(text);
+        auto res1 = pa(text);
+        return make_pair(max(res1.first, 0), res1.second);
     }
 };
 // operator '~'
