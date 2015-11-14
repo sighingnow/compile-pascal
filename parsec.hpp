@@ -24,12 +24,11 @@ private:
     bool const nil;
     T const val;
 public:
-    using data_type = T;
     constexpr Maybe(): nil(true) {}
     constexpr Maybe(T const & val): val(val), nil(false) {}
     bool Nil() const { return this->nil; }
     T Val() const { if (this->nil) { throw val; } else { return val; } }
-    constexpr const operator bool () const { return this->nil == false; }
+    constexpr bool const operator bool () const { return this->nil == false; }
 };
 template<typename T>
 constexpr Maybe<T> const Just(T const & val) {
@@ -37,7 +36,7 @@ constexpr Maybe<T> const Just(T const & val) {
 }
 template<typename T>
 constexpr Maybe<T> const Nothing() {
-    return Maybe<T>();
+    return Maybe<T>(val);
 }
 template<typename T>
 constexpr T const FromJust(Maybe<T> const & wrapper) {
@@ -361,17 +360,12 @@ struct optional {
 private:
     PA const pa;
 public:
-    using parser_type = Maybe<typename PA::parser_type>;
+    using parser_type = typename PA::parser_type;
     constexpr optional(PA const & pa): pa(pa) {}
     string name() const { return "optional: repeat 0 or 1 times."; }
     pair<int, pair<parser_type, string>> operator () (string const & text) const {
-        auto res = pa(text);
-        if (res.first == -1) {
-            return make_pair(0, make_pair(Nothing<parser_type::data_type>(), res.second.second));
-        }
-        else {
-            return make_pair(res.first, make_pair(Just(res.second.first), res.second.second));
-        }
+        auto res1 = pa(text);
+        return make_pair(max(res1.first, 0), res1.second);
     }
 };
 // operator '~'
