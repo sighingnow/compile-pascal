@@ -38,6 +38,10 @@ template<typename T>
 constexpr Maybe<T> const Nothing() {
     return Maybe<T>(val);
 }
+template<typename T>
+constexpr T const FromJust(Maybe<T> const & wrapper) {
+    return wrapper.Val();
+}
 
 
 // drop string without exception.
