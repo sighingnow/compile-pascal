@@ -17,6 +17,29 @@
 #include <vector>
 using namespace std;
 
+// data type: Maybe
+template<typename T>
+struct Maybe{
+private:
+    bool const nil;
+    T const val;
+public:
+    constexpr Maybe(): nil(true) {}
+    constexpr Maybe(T const & val): val(val), nil(false) {}
+    bool Nil() const { return this->nil; }
+    T Val() const { if (this->nil) { throw val; } else { return val; } }
+    constexpr bool const operator bool () const { return this->nil == false; }
+};
+template<typename T>
+constexpr Maybe<T> const Just(T const & val) {
+    return Maybe<T>(val);
+}
+template<typename T>
+constexpr Maybe<T> const Nothing() {
+    return Maybe<T>(val);
+}
+
+
 // drop string without exception.
 string drop(string const & text, int const & k) {
     if ((int)text.length() < k) {
