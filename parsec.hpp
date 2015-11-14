@@ -24,6 +24,7 @@ private:
     bool const nil;
     T const val;
 public:
+    using data_type = T;
     constexpr Maybe(): nil(true) {}
     constexpr Maybe(T const & val): val(val), nil(false) {}
     bool Nil() const { return this->nil; }
