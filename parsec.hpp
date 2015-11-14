@@ -315,7 +315,7 @@ public:
         return res1;
     }
 };
-// operator '<'
+// operator '!='
 template<typename PA, typename PB>
 constexpr ends_with<PA, PB> const operator < (PA const & pa, PB const & pb) {
     return ends_with<PA, PB>(pa, pb);
@@ -365,8 +365,13 @@ public:
     constexpr optional(PA const & pa): pa(pa) {}
     string name() const { return "optional: repeat 0 or 1 times."; }
     pair<int, pair<parser_type, string>> operator () (string const & text) const {
-        auto res1 = pa(text);
-        return make_pair(max(res1.first, 0), res1.second);
+        auto res = pa(text);
+        if (res.first == -1) {
+            return make_pair(0, make_pair(parser_type(), res.second.second));
+        }
+        else {
+            return res;
+        }
     }
 };
 // operator '~'
@@ -475,6 +480,105 @@ public:
 template<typename PA, typename T>
 constexpr mapfn<PA, T> const operator / (PA const & pa, function<T(typename PA::parser_type)> const & fn) {
     return mapfn<PA, T>(pa, fn);
+}
+
+// `chainl p op x` parser one or more occurrences of p, separated by op Returns a value
+// obtained by a left associative application of all functions returned by op to the values 
+// returned by p. . This parser can for example be used to eliminate **left recursion** which 
+// typically occurs in expression grammars.
+template<typename P, typename OP>
+struct chainl {
+private:
+    P const p;
+    OP const op;
+public:
+    using element_type = ::pair<typename OP::parser_type, typename P::parser_type>;
+    using parser_type = vector<element_type>;
+    constexpr chainl(P const & p, OP const & op): p(p), op(op) {}
+    string name() const { return "chainl combinator, to handle left-recursive grammars."; }
+    virtual pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        auto result = parser_type();
+        string s = text;
+        int length = 0;
+        
+        auto res1 = p(s);
+        if (res1.first == -1) { // parser the first left value.
+            return make_pair(-1, make_pair(result, res1.second.second));
+        }
+        length = res1.first;
+        s = drop(s, res1.first);
+        element_type e = element_type();
+        e.second = res1.second.first;
+        result.emplace_back(e);
+        
+        // parser the other values.
+        while (!s.empty()) {
+            auto res = (op + p)(s);
+            if (res.first == -1) {
+                break;
+            }
+            length += res.first;
+            s = drop(s, res.first);
+            result.emplace_back(res.second.first);
+        }
+
+        // finish.
+        return make_pair(length, make_pair(result, name()));
+    }
+};
+// operator ">="
+template<typename P, typename OP>
+constexpr chainl<P, OP> const operator >= (P const & p, OP const & op) {
+    return chainl<P, OP>(p, op);
+}
+
+// chainr p op x parser one or more occurrences of |p|, separated by op Returns a value obtained by a 
+// **right associative** application of all functions returned by op to the values returned by p.
+template<typename P, typename OP>
+struct chainr {
+    // TODO: not implemented.
+private:
+    P const p;
+    OP const op;
+public:
+    using element_type = ::pair<typename OP::parser_type, typename P::parser_type>;
+    using parser_type = vector<element_type>;
+    constexpr chainr(P const & p, OP const & op): p(p), op(op) {}
+    string name() const { return "chainl combinator, to handle right-recursive grammars."; }
+    virtual pair<int, pair<parser_type, string>> operator () (string const & text) const {
+        auto result = parser_type();
+        string s = text;
+        int length = 0;
+        
+        auto res1 = p(s);
+        if (res1.first == -1) { // parser the first left value.
+            return make_pair(-1, make_pair(result, res1.second.second));
+        }
+        length = res1.first;
+        s = drop(s, res1.first);
+        element_type e = element_type();
+        e.second = res1.second.first;
+        result.emplace_back(e);
+        
+        // parser the other values.
+        while (!s.empty()) {
+            auto res = (op + p)(s);
+            if (res.first == -1) {
+                break;
+            }
+            length += res.first;
+            s = drop(s, res.first);
+            result.emplace_back(res.second.first);
+        }
+
+        // finish.
+        return make_pair(length, make_pair(result, name()));
+    }
+};
+// operator "<="
+template<typename P, typename OP>
+constexpr chainr<P, OP> const operator <= (P const & p, OP const & op) {
+    return chainr<P, OP>(p, op);
 }
 
 

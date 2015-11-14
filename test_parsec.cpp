@@ -145,6 +145,16 @@ TEST_CASE("Parser combinators.") {
         REQUIRE(res3.status == false);
     }
 
+    SECTION("Ends with combinator and compose combinator.") {
+        auto parser = (spaces >> string_literal("abcd") < character('a')) >> string_literal("abcd") < character(',');
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
+
+        auto res = parse_tool("abcdabcd,");
+        REQUIRE(res.status == true);
+        REQUIRE(res.actual == "abcd");
+        REQUIRE(res.len == 8);
+    }
+
     SECTION("Except combinator.") {
         auto parser = (character('x') | character('y') | character('z')) - character('y');
         auto parse_tool = ParsecT<decltype(parser)>(parser);
@@ -187,6 +197,23 @@ TEST_CASE("Repeat combinators.") {
 
         auto res4 = parse_tool("x");
         REQUIRE(res4.status == false);
+    }
+
+    SECTION("Test optional combinator.") {
+        auto parser = (~(++digit)) + (~string_literal("abcde"));
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
+
+        auto res1 = parse_tool("abcdec");
+        auto out1 = res1.actual;
+        REQUIRE(res1.status == true);
+        REQUIRE(out1.first.size() == 0);
+        REQUIRE(out1.second == "abcde");
+
+        auto res2 = parse_tool("525435d");
+        auto out2 = res2.actual;
+        REQUIRE(res2.status == true);
+        REQUIRE(out2.first[2] == '5');
+        REQUIRE(out2.second == "");
     }
 
     SECTION("Test repeat 0 time using times combinator.") {
@@ -238,11 +265,38 @@ TEST_CASE("Repeat combinators.") {
         REQUIRE(res1.actual == "xxxx");
         REQUIRE(res1.len == 7);
 
-
         auto res2 = parse_tool("xyxyxyxy");
         REQUIRE(res2.status == true);
         REQUIRE(res2.actual == "xxxx");
         REQUIRE(res2.len == 7);
+    }
+}
+
+TEST_CASE("Chain combinator for recursive grammars.") {
+    SECTION("Test left recursive combinator.") {
+        auto parser = (character('x') | character('y') | character('z')) >= (character('+') | character('-'));
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
+
+        auto res1 = parse_tool("x+y-z+x+x+x-y");
+        REQUIRE(res1.status == true);
+        auto out1 = res1.actual;
+        REQUIRE(out1[0].second == 'x');
+        REQUIRE(out1[1].first == '+');
+        REQUIRE(out1[1].second == 'y');
+        REQUIRE(out1[2].first == '-');
+        REQUIRE(out1[2].second == 'z');
+        REQUIRE(out1[3].first == '+');
+        REQUIRE(out1[3].second == 'x');
+        REQUIRE(out1[4].first == '+');
+        REQUIRE(out1[4].second == 'x');
+        REQUIRE(out1[5].first == '+');
+        REQUIRE(out1[5].second == 'x');
+        REQUIRE(out1[6].first == '-');
+        REQUIRE(out1[6].second == 'y');
+    }
+
+    SECTION("Test right recursive combinator.") {
+        REQUIRE(true);
     }
 }
 
