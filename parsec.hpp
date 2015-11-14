@@ -24,11 +24,12 @@ private:
     bool const nil;
     T const val;
 public:
+    using data_type = T;
     constexpr Maybe(): nil(true) {}
     constexpr Maybe(T const & val): val(val), nil(false) {}
     bool Nil() const { return this->nil; }
     T Val() const { if (this->nil) { throw val; } else { return val; } }
-    constexpr bool const operator bool () const { return this->nil == false; }
+    constexpr const operator bool () const { return this->nil == false; }
 };
 template<typename T>
 constexpr Maybe<T> const Just(T const & val) {
@@ -36,7 +37,7 @@ constexpr Maybe<T> const Just(T const & val) {
 }
 template<typename T>
 constexpr Maybe<T> const Nothing() {
-    return Maybe<T>(val);
+    return Maybe<T>();
 }
 template<typename T>
 constexpr T const FromJust(Maybe<T> const & wrapper) {
