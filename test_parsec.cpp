@@ -3,62 +3,62 @@
 #include "parsec.hpp"
 
 TEST_CASE("Test all primitive parsers form characters.") {
-    // SECTION("any character") {
-    //     auto parser = any;
-    //     auto parse_tool = ParsecT<decltype(parser)>(parser);
+    SECTION("any character") {
+        auto parser = any;
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
 
-    //     input_t *s1 = new input_t("abcdeABCDE12345");
-    //     auto res1 = parse_tool(s1);
-    //     REQUIRE(res1.status == true);
-    //     REQUIRE(res1.actual == 'a');
-    // }
+        input_t *s1 = new input_t("abcdeABCDE12345");
+        auto res1 = parse_tool(s1);
+        REQUIRE(res1.status == true);
+        REQUIRE(res1.actual == 'a');
+    }
 
-    // SECTION("blank character") {
-    //     auto parser = blank;
-    //     auto parse_tool = ParsecT<decltype(parser)>(parser);
+    SECTION("blank character") {
+        auto parser = blank;
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
 
-    //     input_t *s1 = new input_t(" x");
-    //     auto res1 = parse_tool(s1);
-    //     REQUIRE(res1.status == true);
-    //     REQUIRE(res1.actual == ' ');
-    // }
+        input_t *s1 = new input_t(" x");
+        auto res1 = parse_tool(s1);
+        REQUIRE(res1.status == true);
+        REQUIRE(res1.actual == ' ');
+    }
 
-    // SECTION("blank character invalid") {
-    //     auto parser = blank;
-    //     auto parse_tool = ParsecT<decltype(parser)>(parser);
+    SECTION("blank character invalid") {
+        auto parser = blank;
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
 
-    //     input_t *s1 = new input_t("x");
-    //     auto res1 = parse_tool(s1);
-    //     REQUIRE(res1.status == false);   
-    // }
+        input_t *s1 = new input_t("x");
+        auto res1 = parse_tool(s1);
+        REQUIRE(res1.status == false);   
+    }
 
-    // SECTION("single specified character") {
-    //     auto parser = character('a');
-    //     auto parse_tool = ParsecT<decltype(parser)>(parser);
+    SECTION("single specified character") {
+        auto parser = character('a');
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
         
-    //     input_t *s1 = new input_t("abcde");
-    //     auto res1 = parse_tool(s1);
-    //     REQUIRE(res1.status == true);
-    //     REQUIRE(res1.actual == 'a');
+        input_t *s1 = new input_t("abcde");
+        auto res1 = parse_tool(s1);
+        REQUIRE(res1.status == true);
+        REQUIRE(res1.actual == 'a');
 
-    //     input_t *s2 = new input_t("x");
-    //     auto res2 = parse_tool(s2);
-    //     REQUIRE(res2.status == false);
-    // }
+        input_t *s2 = new input_t("x");
+        auto res2 = parse_tool(s2);
+        REQUIRE(res2.status == false);
+    }
 
-    // SECTION("string literal") {
-    //     auto parser = string_literal("abcde");
-    //     auto parse_tool = ParsecT<decltype(parser)>(parser);
+    SECTION("string literal") {
+        auto parser = string_literal("abcde");
+        auto parse_tool = ParsecT<decltype(parser)>(parser);
         
-    //     input_t *s1 = new input_t("abcdeabcde");
-    //     auto res1 = parse_tool(s1);
-    //     REQUIRE(res1.status == true);
-    //     REQUIRE(res1.actual == "abcde");
+        input_t *s1 = new input_t("abcdeabcde");
+        auto res1 = parse_tool(s1);
+        REQUIRE(res1.status == true);
+        REQUIRE(res1.actual == "abcde");
 
-    //     input_t *s2 = new input_t("x");
-    //     auto res2 = parse_tool(s2);
-    //     REQUIRE(res2.status == false);
-    // }
+        input_t *s2 = new input_t("x");
+        auto res2 = parse_tool(s2);
+        REQUIRE(res2.status == false);
+    }
 }
 
 TEST_CASE("Parser combinators.") {
