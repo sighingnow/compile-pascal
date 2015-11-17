@@ -3,7 +3,7 @@
 MAKE 								:= make
 CXX									:= clang++
 CXXFLAGS							:= -Wall -Wextra -std=c++11
-LD									:= g++
+LD									:= clang++
 LDFLAGS 							:= -O
 INCLUDE								:= -I .
 
