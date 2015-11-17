@@ -30,7 +30,7 @@ public:
     constexpr Maybe(T const & val): val(val), nil(false) {}
     bool Nil() const { return this->nil; }
     T Val() const { if (this->nil) { throw val; } else { return val; } }
-    constexpr const operator bool () const { return this->nil == false; }
+    constexpr operator bool () const { return this->nil == false; }
 };
 template<typename T>
 constexpr Maybe<T> const Just(T const & val) {
