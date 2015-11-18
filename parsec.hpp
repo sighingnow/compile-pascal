@@ -58,6 +58,10 @@ public:
     bool empty() const { return this->text.empty(); }
     char at(int const & k) { return this->text.at(k); }
     input_t *drop(int const & k) {
+        if (k < 0) {
+            // cout <<  string("ERROR: try to drop ") << k << " chars from input stream." << endl;
+            return this;
+        }
         if ((size_t)k < this->text.length()) {
             return new input_t(this->text.substr(k), this->desc);
         }
@@ -137,8 +141,10 @@ public:
         try { // try exception throwed during operating the stream object.
             res = parser(text);
         } catch (std::exception & e) {
-            cout << "!!!Exception: " + string(e.what()) << endl;
+            cout << string("!!!Exception: ") + string(e.what()) << endl;
             res = make_tuple(-1, V(), "!!!Exception: " + string(e.what()));
+        } catch (...) {
+            cout << string("!!!Exception: ") + "unknown exception." << endl;
         }
         text = text->next(std::get<0>(res)); // move ahead offset.
         return ValueT<V>(std::get<0>(res) != -1, loc, std::get<0>(res), std::get<1>(res), std::get<2>(res));
