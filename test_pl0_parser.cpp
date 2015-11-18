@@ -1,208 +1,204 @@
-// #define CATCH_CONFIG_MAIN
-// #include "catch.hpp"
+#include "gtest/gtest.h"
 #include "pl0_parser.hpp"
 
-// TEST_CASE("Test parser for PL0 grammar.") {
-//     SECTION("Parse pl0_digit") {
-//         auto parse_tool = ParsecT<decltype(pl0_digit)>(pl0_digit);
+// Test parser for PL0 grammar.
 
-//         REQUIRE(parse_tool("1234").actual == '1');
-//         REQUIRE(parse_tool("a").status == false);
-//     }
+TEST(PL0Parser, pl0_digit) {
+    auto parse_tool = ParsecT<decltype(pl0_digit)>(pl0_digit);
 
-//     SECTION("Parse pl0_alpha") {
-//         auto parse_tool = ParsecT<decltype(pl0_alpha)>(pl0_alpha);
+    EXPECT_EQ(parse_tool(new input_t("1234")).actual->val, '1');
+    EXPECT_EQ(parse_tool(new input_t("a")).status, false);
+}
 
-//         REQUIRE(parse_tool("abcd").status == true);
-//         REQUIRE(parse_tool("ABCD").actual == 'A');
-//         REQUIRE(parse_tool("").status == false);
-//         REQUIRE(parse_tool("1").status == false);
-//     }
+TEST(PL0Parser, pl0_alpha) {
+    auto parse_tool = ParsecT<decltype(pl0_alpha)>(pl0_alpha);
 
-//     SECTION("Parse pl0_char") {
-//         auto parse_tool = ParsecT<decltype(pl0_char)>(pl0_char);
+    EXPECT_EQ(parse_tool(new input_t("abcd")).status, true);
+    EXPECT_EQ(parse_tool(new input_t("ABCD")).actual->val, 'A');
+    EXPECT_EQ(parse_tool(new input_t("")).status, false);
+    EXPECT_EQ(parse_tool(new input_t("1")).status, false);
+}
 
-//         auto res1 = parse_tool("'a''b'");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual == 'a');
+TEST(PL0Parser, pl0_char) {
+    auto parse_tool = ParsecT<decltype(pl0_char)>(pl0_char);
 
-//         auto res2 = parse_tool("'ab");
-//         REQUIRE(res2.status == false);
+    auto res1 = parse_tool(new input_t("'a''b'"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->val, 'a');
 
-//         auto res3 = parse_tool("a'");
-//         REQUIRE(res3.status == false);
-//     }
+    auto res2 = parse_tool(new input_t("'ab"));
+    EXPECT_EQ(res2.status, false);
 
-//     SECTION("Parse pl0_charseq") {
-//         auto parse_tool = ParsecT<decltype(pl0_charseq)>(pl0_charseq);
+    auto res3 = parse_tool(new input_t("a'"));
+    EXPECT_EQ(res3.status, false);
+}
 
-//         auto res1 = parse_tool(string(1, '"') + "a bc de " + string(1, '"'));
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual == "a bc de ");
-//         REQUIRE(res1.len == 10);
-//     }
+TEST(PL0Parser, pl0_charseq) {
+    auto parse_tool = ParsecT<decltype(pl0_charseq)>(pl0_charseq);
 
-//     SECTION("Parse pl0_unsigned") {
-//         auto parse_tool = ParsecT<decltype(pl0_unsigned)>(pl0_unsigned);
+    auto res1 = parse_tool(new input_t(string(1, '"') + "a bc de " + string(1, '"')));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->val, "a bc de ");
+    EXPECT_EQ(res1.len, 10);
+}
 
-//         auto res1 = parse_tool("123456");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual == 123456);
-//     }
+TEST(PL0Parser, pl0_unsigned) {
+    auto parse_tool = ParsecT<decltype(pl0_unsigned)>(pl0_unsigned);
 
-//     SECTION("Parse pl0_const") {
-//         auto parse_tool = ParsecT<decltype(pl0_const)>(pl0_const);
+    auto res1 = parse_tool(new input_t("123456"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->val, 123456);
+}
 
-//         auto res1 = parse_tool("  +1245");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual == 1245);
+TEST(PL0Parser, pl0_const) {
+    auto parse_tool = ParsecT<decltype(pl0_const)>(pl0_const);
 
-//         auto res2 = parse_tool("-12345  ");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual == -12345);
+    auto res1 = parse_tool(new input_t("  +1245"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->val, 1245);
 
-//         auto res3 = parse_tool("12345");
-//         REQUIRE(res3.status == true);
-//         REQUIRE(res3.actual == 12345);
+    auto res2 = parse_tool(new input_t("-12345  "));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->val, -12345);
 
-//         auto res4 = parse_tool("'c'");
-//         REQUIRE(res4.status == true);
-//         REQUIRE(res4.actual == (int)'c');
+    auto res3 = parse_tool(new input_t("12345"));
+    EXPECT_EQ(res3.status, true);
+    EXPECT_EQ(res3.actual->val, 12345);
 
-//         REQUIRE(parse_tool("c").status == false);
-//         REQUIRE(parse_tool("+'c'").status == false);
-//     }
+    auto res4 = parse_tool(new input_t("'c'"));
+    EXPECT_EQ(res4.status, true);
+    EXPECT_EQ(res4.actual->val, (int)'c');
 
-//     SECTION("Parse pl0_identify") {
-//         auto parse_tool = ParsecT<decltype(pl0_identify)>(pl0_identify);
+    EXPECT_EQ(parse_tool(new input_t("c")).status, false);
+    EXPECT_EQ(parse_tool(new input_t("+'c'")).status, false);
+}
 
-//         auto res1 = parse_tool("integer ");
-//         REQUIRE(res1.actual == "integer");
-//         REQUIRE(res1.status == true);
+TEST(PL0Parser, pl0_identify) {
+    auto parse_tool = ParsecT<decltype(pl0_identify)>(pl0_identify);
 
-//         auto res2 = parse_tool("char;");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual == "char");
+    auto res1 = parse_tool(new input_t("integer "));
+    EXPECT_EQ(res1.actual->id, "integer");
+    EXPECT_EQ(res1.status, true);
 
-//         REQUIRE(parse_tool("xxxxxxxxxxxxx").status == true);
-//         REQUIRE(parse_tool("xxxxxxxxxxxxx=").actual == "xxxxxxxxxxxxx");
-//     }
+    auto res2 = parse_tool(new input_t("char;"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->id, "char");
 
-//     SECTION("Parse pl0_primitive_type") {
-//         auto parse_tool = ParsecT<decltype(pl0_primitive_type)>(pl0_primitive_type);
+    EXPECT_EQ(parse_tool(new input_t("xxxxxxxxxxxxx")).status, true);
+    EXPECT_EQ(parse_tool(new input_t("xxxxxxxxxxxxx=")).actual->id, "xxxxxxxxxxxxx");
+}
 
-//         auto res1 = parse_tool("integer");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual == "integer");
+TEST(PL0Parser, pl0_primitive_type) {
+    auto parse_tool = ParsecT<decltype(pl0_primitive_type)>(pl0_primitive_type);
 
-//         auto res2 = parse_tool("char");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual == "char");
+    auto res1 = parse_tool(new input_t("integer"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->type, "integer");
 
-//         REQUIRE(parse_tool("xxxxxxxxxxxxx").status == false);
-//     }
+    auto res2 = parse_tool(new input_t("char"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->type, "char");
 
-//     SECTION("Parse pl0_type") {
-//         auto parse_tool = ParsecT<decltype(pl0_type)>(pl0_type);
+    EXPECT_EQ(parse_tool(new input_t("xxxxxxxxxxxxx")).status, false);
+}
 
-//         auto res1 = parse_tool("integer; const;");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual.first == "integer");
+TEST(PL0Parser, pl0_type) {
+    auto parse_tool = ParsecT<decltype(pl0_type)>(pl0_type);
 
-//         auto res2 = parse_tool("array [124] of integer");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual.first == "integer");
-//         REQUIRE(res2.actual.second == 124);
+    auto res1 = parse_tool(new input_t("integer; const;"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->type->type, "integer");
 
-//         auto res3 = parse_tool("array [  0 ] of char");
-//         REQUIRE(res3.status == true);
-//         REQUIRE(res3.actual.first == "char");
-//         REQUIRE(res3.actual.second == 0);
-//         REQUIRE(res3.len == 20);
-//     }
+    auto res2 = parse_tool(new input_t("array [124] of integer"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->type->type, "integer");
+    EXPECT_EQ(res2.actual->len, 124);
 
-//     SECTION("Parse pl0_vardesc") {
-//         auto parse_tool = ParsecT<decltype(pl0_vardesc)>(pl0_vardesc);
+    auto res3 = parse_tool(new input_t("array [  0 ] of char"));
+    EXPECT_EQ(res3.status, true);
+    EXPECT_EQ(res3.actual->type->type, "char");
+    EXPECT_EQ(res3.actual->len, 0);
+    EXPECT_EQ(res3.len, 20);
+}
 
-//         auto res1 = parse_tool("x, y, z: integer;");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual.second.first == "integer");
-//         REQUIRE(res1.actual.first.size() == 3);
+TEST(PL0Parser, pl0_var_define) {
+    auto parse_tool = ParsecT<decltype(pl0_var_define)>(pl0_var_define);
 
-//         auto res2 = parse_tool("k, x, y: array [177] of char");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual.second.first == "char");
-//         REQUIRE(res2.actual.second.second == 177);
-//         REQUIRE(res2.actual.first[1] == "x");
+    auto res1 = parse_tool(new input_t("x, y, z: integer;"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->type->type->type, "integer");
+    EXPECT_EQ(res1.actual->ids.size(), (size_t)3);
 
-//         auto res3 = parse_tool("x, y, z: array [177] off char");
-//         REQUIRE(res3.status == false);
-//     }
+    auto res2 = parse_tool(new input_t("k, x, y: array [177] of char"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->type->type->type, "char");
+    EXPECT_EQ(res2.actual->type->len, 177);
+    EXPECT_EQ(res2.actual->ids[1]->id, "x");
 
-//     SECTION("Parse pl0_vardesc_stmt") {
-//         auto parse_tool = ParsecT<decltype(pl0_vardesc_stmt)>(pl0_vardesc_stmt);
+    auto res3 = parse_tool(new input_t("x, y, z: array [177] off char"));
+    EXPECT_EQ(res3.status, false);
+}
 
-//         auto res1 = parse_tool("var x, y, z: integer;");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual[0].second.first == "integer");
-//         REQUIRE(res1.actual[0].first.size() == 3);
+TEST(PL0Parser, pl0_var_stmt) {
+    auto parse_tool = ParsecT<decltype(pl0_var_stmt)>(pl0_var_stmt);
 
-//         auto res2 = parse_tool("var k, x, y: array [177] of char; kk, xx, yy: integer;");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual[0].second.first == "char");
-//         REQUIRE(res2.actual[0].second.second == 177);
-//         REQUIRE(res2.actual[0].first[1] == "x");
-//         REQUIRE(res2.actual[1].second.first == "integer");
-//         REQUIRE(res2.actual[1].second.second == -1);
-//         REQUIRE(res2.actual[1].first[1] == "xx");
-//         REQUIRE(res2.actual[1].first.size() == 3);
+    auto res1 = parse_tool(new input_t("var x, y, z: integer;"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->stmt[0]->type->type->type, "integer");
+    EXPECT_EQ(res1.actual->stmt[0]->ids.size(), (size_t)3);
 
-//         auto res3 = parse_tool("var x, y, z: array [177] of char");
-//         REQUIRE(res3.status == false);
-//     }
+    auto res2 = parse_tool(new input_t("var k, x, y: array [177] of char; kk, xx, yy: integer;"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->stmt[0]->type->type->type, "char");
+    EXPECT_EQ(res2.actual->stmt[0]->type->len, 177);
+    EXPECT_EQ(res2.actual->stmt[0]->ids[1]->id, "x");
+    EXPECT_EQ(res2.actual->stmt[1]->type->type->type, "integer");
+    EXPECT_EQ(res2.actual->stmt[1]->type->len, -1);
+    EXPECT_EQ(res2.actual->stmt[1]->ids[1]->id, "xx");
+    EXPECT_EQ(res2.actual->stmt[1]->ids.size(), (size_t)3);
 
-//     SECTION("Parse pl0_const_define") {
-//         auto parse_tool = ParsecT<decltype(pl0_const_define)>(pl0_const_define);
+    auto res3 = parse_tool(new input_t("var x, y, z: array [177] of char"));
+    EXPECT_EQ(res3.status, false);
+}
 
-//         auto res1 = parse_tool("x = +1245");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual.first == "x");
-//         REQUIRE(res1.actual.second == 1245);
+TEST(PL0Parser, pl0_const_define) {
+    auto parse_tool = ParsecT<decltype(pl0_const_define)>(pl0_const_define);
 
-//         auto res2 = parse_tool("tt=-12345");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual.first == "tt");
-//         REQUIRE(res2.actual.second == -12345);
+    auto res1 = parse_tool(new input_t("x = +1245"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->id->id, "x");
+    EXPECT_EQ(res1.actual->val->val, 1245);
 
-//         auto res3 = parse_tool("c = 'c'");
-//         REQUIRE(res3.status == true);
-//         REQUIRE(res3.actual.first == "c");
-//         REQUIRE(res3.actual.second == (int)'c');
+    auto res2 = parse_tool(new input_t("tt=-12345"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->id->id, "tt");
+    EXPECT_EQ(res2.actual->val->val, -12345);
 
-//         REQUIRE(parse_tool("c = c").status == false);
-//         REQUIRE(parse_tool("c = -'c'").status == false);
-//     }
+    auto res3 = parse_tool(new input_t("c = 'c'"));
+    EXPECT_EQ(res3.status, true);
+    EXPECT_EQ(res3.actual->id->id, "c");
+    EXPECT_EQ(res3.actual->val->val, (int)'c');
 
-//     SECTION("Parse pl0_const_desc") {
-//         auto parse_tool = ParsecT<decltype(pl0_const_stmt)>(pl0_const_stmt);
+    EXPECT_EQ(parse_tool(new input_t("c = c")).status, false);
+    EXPECT_EQ(parse_tool(new input_t("c = -'c'")).status, false);
+}
 
-//         auto res1 = parse_tool("const x = +1245, t = -12456, u = 'c';");
-//         REQUIRE(res1.status == true);
-//         REQUIRE(res1.actual[0].first == "x");
-//         REQUIRE(res1.actual[0].second == 1245);
+TEST(PL0Parser, pl0_const_stmt) {
+    auto parse_tool = ParsecT<decltype(pl0_const_stmt)>(pl0_const_stmt);
 
-//         auto res2 = parse_tool("const tt=-12345, x ='c', z = 12;");
-//         REQUIRE(res2.status == true);
-//         REQUIRE(res2.actual.size() == 3);
-//         REQUIRE(res2.actual[1].first == "x");
-//         REQUIRE(res2.actual[2].second == 12);
+    auto res1 = parse_tool(new input_t("const x = +1245, t = -12456, u = 'c';"));
+    EXPECT_EQ(res1.status, true);
+    EXPECT_EQ(res1.actual->stmt[0]->id->id, "x");
+    EXPECT_EQ(res1.actual->stmt[0]->val->val, 1245);
 
-//         REQUIRE(parse_tool("const c = 't'").status == false);
-//     }
+    auto res2 = parse_tool(new input_t("const tt=-12345, x ='c', z = 12;"));
+    EXPECT_EQ(res2.status, true);
+    EXPECT_EQ(res2.actual->stmt.size(), (size_t)3);
+    EXPECT_EQ(res2.actual->stmt[0]->id->id, "tt");
+    EXPECT_EQ(res2.actual->stmt[2]->val->val, 12);
 
-// }
-
-
+    EXPECT_EQ(parse_tool(new input_t("const c = 't'")).status, false);
+}
 
 
 

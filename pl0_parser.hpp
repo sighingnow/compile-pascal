@@ -149,7 +149,7 @@ pair<int, pl0_ast_alnum *> pl0_alpha_fn(input_t *text) {
 pair<int, pl0_ast_constv *> pl0_char_fn(input_t *text) {
     auto parser = character('\'') >> (pl0_digit | pl0_alpha) << character('\'');
     auto res = (spaces >> parser << spaces)(text);
-    return make_pair(std::get<0>(res), new pl0_ast_constv(std::get<1>(res)->val));
+    return make_pair(std::get<0>(res), new pl0_ast_constv(std::get<1>(res) ? std::get<1>(res)->val : 0));
 }
 
 // <字符串> ::= "{十进制编码为32,33,35-126的ASCII字符}"
@@ -162,7 +162,7 @@ pair<int, pl0_ast_charseq *> pl0_charseq_fn(input_t *text) {
 // <无符号整数> ::= <数字>{<数字>}
 pair<int, pl0_ast_constv *> pl0_unsigned_fn(input_t *text) {
     function<unsigned int (vector<pl0_ast_alnum *>)> fn = [](vector<pl0_ast_alnum *> vec) {
-        unsigned int ans = 0; for (auto k: vec) { ans = ans * 10 + (k->val - '0'); } return ans;
+        unsigned int ans = 0; for (auto k: vec) { ans = ans * 10 + (k ? k->val - '0' : 0); } return ans;
     };
     auto res = ((spaces >> (pl0_digit++) << spaces) / fn)(text);
     return make_pair(std::get<0>(res), new pl0_ast_constv(std::get<1>(res)));
@@ -173,7 +173,7 @@ pair<int, pl0_ast_constv *> pl0_const_fn(input_t *text) {
     auto res1 = (spaces >> (character('+') | character('-')) << spaces)(text);
     if (std::get<0>(res1) != -1) {
         int flag = std::get<1>(res1) == '+' ? (1) : (-1);
-        auto res2 = pl0_unsigned(text->drop(std::get<1>(res1)));
+        auto res2 = pl0_unsigned(text->drop(std::get<0>(res1)));
         return make_pair(
             std::get<0>(res2) == -1 ? -1 : (std::get<0>(res1) + std::get<0>(res2)),
             new pl0_ast_constv(std::get<1>(res2)->val * flag)
@@ -181,14 +181,14 @@ pair<int, pl0_ast_constv *> pl0_const_fn(input_t *text) {
     }
     else {
         auto res = (pl0_unsigned | pl0_char)(text);
-        return make_pair(std::get<0>(res), new pl0_ast_constv(std::get<1>(res)->val));
+        return make_pair(std::get<0>(res), new pl0_ast_constv(std::get<1>(res) ? std::get<1>(res)->val : 0));
     }
 }
 
 // <标识符> ::= <字母>{<字母>|<数字>}
 pair<int, pl0_ast_identify *> pl0_identify_fn(input_t *text) {
     function<string (pair<pl0_ast_alnum *, vector<pl0_ast_alnum *>>)> fn = [](pair<pl0_ast_alnum *, vector<pl0_ast_alnum *>> const & p) {
-        string ans = string(1, p.first->val); for (pl0_ast_alnum *c: p.second) { ans.push_back(c->val); } return ans;
+        string ans = string(1, p.first ? p.first->val : 0); for (pl0_ast_alnum *c: p.second) { ans.push_back(c ? c->val : 0); } return ans;
     };
     auto parser = pl0_alpha + (++(pl0_alpha | pl0_digit));
     auto res = (spaces >> (parser / fn) << spaces)(text);
@@ -208,7 +208,7 @@ pair<int, pl0_ast_type *> pl0_type_fn(input_t *text) {
     auto parser = (pl0_primitive_type / fn) // not array
         | ((string_literal("array") >> spaces >> (character('[') >> pl0_unsigned << character(']')) << spaces << string_literal("of")) + pl0_primitive_type); // array
     auto res = (spaces >> parser << spaces)(text);
-    return make_pair(std::get<0>(res), new pl0_ast_type(std::get<1>(res).second, std::get<1>(res).first->val));
+    return make_pair(std::get<0>(res), new pl0_ast_type(std::get<1>(res).second, std::get<1>(res).first ? std::get<1>(res).first->val : -1));
 }
 
 // <加法运算符> ::= +|-

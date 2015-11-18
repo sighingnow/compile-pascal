@@ -90,7 +90,7 @@ struct pl0_ast_var_stmt: pl0_ast_prog {
 };
 struct pl0_ast_var_define {
     struct pl0_ast_type *type;
-    std::vector<struct pl0_ast_identify*> ids;
+    std::vector<struct pl0_ast_identify *> ids;
     pl0_ast_var_define(pl0_ast_type *type, std::vector<pl0_ast_identify *> const & ids): type(type), ids(ids) {}
 };
 struct pl0_ast_type {

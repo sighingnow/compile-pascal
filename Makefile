@@ -6,8 +6,11 @@ CXXFLAGS							:= -Wall -Wextra -std=c++11
 LDFLAGS 							:= -O
 INCLUDE								:= -I .
 
+LIBGTEST_DIR 						:= ./gtest
 LIBPARSEC_DIR						:= ./libparsec
 
+LDFLAGS								+=  -L $(LIBGTEST_DIR) -lgtest_main -lgtest
+INCLUDE 							+= -I $(LIBGTEST_DIR)/include
 INCLUDE 							+= -I $(LIBPARSEC_DIR)/
 
 DEBUG 								:= 1
@@ -20,17 +23,20 @@ endif
 UTILS								:= 
 
 ## default target.
-all: clean test
+all: clean googletest test
+
+googletest: $(LIBGTEST_DIR)
+	make --dir $(LIBGTEST_DIR) CXX=$(CXX)
 
 test: test_pl0_parser.out
 	$(foreach case, $^, ./$(case))
 .PHONY: test
 
 %.out: %.o $(UTILS)
-	$(CXX) $^ -o $@ $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 %.o: %.cpp
-	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<
 
 clean:
 	rm -f *.o
