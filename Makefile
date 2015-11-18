@@ -3,9 +3,12 @@
 MAKE 								:= make
 CXX									:= clang++
 CXXFLAGS							:= -Wall -Wextra -std=c++11
-LD									:= g++
 LDFLAGS 							:= -O
-INCLUDE								:= -I . -I libparsec
+INCLUDE								:= -I .
+
+LIBPARSEC_DIR						:= ./libparsec
+
+INCLUDE 							+= -I $(LIBPARSEC_DIR)/
 
 DEBUG 								:= 1
 ifeq ($(DEBUG), 1)
@@ -21,8 +24,6 @@ all: clean test
 
 test: test_pl0_parser.out
 	$(foreach case, $^, ./$(case))
-.PHONY: test
-	
 .PHONY: test
 
 %.out: %.o $(UTILS)
