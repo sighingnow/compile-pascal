@@ -3,9 +3,13 @@
 MAKE 								:= make
 CXX									:= clang++
 CXXFLAGS							:= -Wall -Wextra -std=c++11
-LD									:= clang++
 LDFLAGS 							:= -O
 INCLUDE								:= -I .
+
+LIBGTEST_DIR 						:= ./gtest
+
+LDFLAGS								+=  -L $(LIBGTEST_DIR) -lgtest_main -lgtest
+INCLUDE 							+= -I $(LIBGTEST_DIR)/include
 
 DEBUG 								:= 1
 ifeq ($(DEBUG), 1)
@@ -15,17 +19,20 @@ else
 endif
 
 ## default target.
-all: clean test
+all: clean googletest test
+
+googletest: $(LIBGTEST_DIR)
+	make --dir $(LIBGTEST_DIR) CXX=$(CXX)
 
 test: test_parsec.out
-	./$<
+	$(foreach case, $^, ./$(case))
 .PHONY: test
 
 %.out: %.o
-	$(CXX) $^ -o $@ $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 %.o: %.cpp
-	$(CXX) -c $< $(CXXFLAGS) $(INCLUDE)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<
 
 clean:
 	rm -f *.o

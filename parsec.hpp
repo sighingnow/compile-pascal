@@ -659,12 +659,12 @@ pair<int, char> space_fn(input_t *text) {
 }
 const class parser_t<char> space("space", space_fn);
 
-pair<int, char> eof_fn(input_t *text) {
+pair<int, char> end_f_fn(input_t *text) {
     if (text->empty()) { return make_pair(-1, '\0'); }
     char c = text->at(0);
     return make_pair(c == EOF ? (1) : (-1), c);
 }
-const class parser_t<char> eof("eof", eof_fn);
+const class parser_t<char> end_f("eof", end_f_fn);
 
 pair<int, char> eol_fn(input_t *text) {
     if (text->empty()) { return make_pair(-1, '\0'); }
