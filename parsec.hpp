@@ -123,7 +123,7 @@ struct ParseError: public exception {
  * Parser model, wraps a function parse a Value object from a stream at specified position.
  */
 
-template<typename P>
+template<typename P, typename = typename P::parser_type>
 struct ParsecT {
 private:
     P const parser;
@@ -173,7 +173,7 @@ public:
  * Parser combinators.
  */
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class compose {
 private:
     PA const pa;
@@ -202,7 +202,7 @@ constexpr compose<PA, PB> const operator >> (PA const & pa, PB const & pb) {
     return compose<PA, PB>(pa, pb);
 }
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class choice {
 private:
     PA const pa;
@@ -228,7 +228,7 @@ constexpr choice<PA, PB> const operator | (PA const & pa, PB const & pb) {
     return choice<PA, PB>(pa, pb);
 }
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class try_choice {
 private:
     PA const pa;
@@ -254,7 +254,7 @@ constexpr try_choice<PA, PB> const operator ^ (PA const & pa, PB const & pb) {
     return try_choice<PA, PB>(pa, pb);
 }
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class joint {
 private:
     PA const pa;
@@ -286,7 +286,7 @@ constexpr joint<PA, PB> const operator + (PA const & pa, PB const & pb) {
     return joint<PA, PB>(pa, pb);
 }
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class except {
 private:
     PA const pa;
@@ -310,7 +310,7 @@ constexpr except<PA, PB> const operator - (PA const & pa, PB const & pb) {
     return except<PA, PB>(pa, pb);
 }
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class skip {
 private:
     PA const pa;
@@ -338,7 +338,7 @@ constexpr skip<PA, PB> const operator << (PA const & pa, PB const & pb) {
     return skip<PA, PB>(pa, pb);
 }
 
-template<typename PA, typename PB>
+template<typename PA, typename PB, typename = typename PA::parser_type, typename = typename PB::parser_type>
 class ends_with {
 private:
     PA const pa;
@@ -368,7 +368,7 @@ constexpr ends_with<PA, PB> const operator < (PA const & pa, PB const & pb) {
     return ends_with<PA, PB>(pa, pb);
 }
 
-template<typename PA>
+template<typename PA, typename = typename PA::parser_type>
 class times {
 private:
     PA const pa;
@@ -402,7 +402,7 @@ public:
     }
 };
 
-template<typename PA>
+template<typename PA, typename = typename PA::parser_type>
 struct optional {
 private:
     PA const pa;
@@ -426,7 +426,7 @@ constexpr optional<PA> const operator ~ (PA const & pa) {
     return optional<PA>(pa);
 }
 
-template<typename PA>
+template<typename PA, typename = typename PA::parser_type>
 struct many {
 private:
     PA const pa;
@@ -444,7 +444,7 @@ constexpr many<PA> const operator ++ (PA const & pa) {
     return many<PA>(pa);
 }
 
-template<typename PA>
+template<typename PA, typename = typename PA::parser_type>
 struct many1 {
 private:
     PA const pa;
@@ -462,7 +462,7 @@ constexpr many1<PA> const operator ++ (PA const & pa, int) {
     return many1<PA>(pa);
 }
 
-template<typename PA>
+template<typename PA, typename = typename PA::parser_type>
 struct countk {
 private:
     PA const pa;
@@ -482,7 +482,7 @@ constexpr countk<PA> const operator * (PA const & pa, int const & k) {
 }
 
 // sepby1 p sep parses one or more occurrences of p, separated by sep. Returns a vector of values returned by p.
-template<typename P, typename SEP>
+template<typename P, typename SEP, typename = typename P::parser_type, typename = typename SEP::parser_type>
 struct sepby1 {
 private:
     P const p;
@@ -501,12 +501,12 @@ public:
     }
 };
 // operator '%'
-template<typename P, typename SEP>
+template<typename P, typename SEP, typename = typename P::parser_type, typename = typename SEP::parser_type>
 constexpr sepby1<P, SEP> const operator % (P const & p, SEP const & sep) {
     return sepby1<P, SEP>(p, sep);
 }
 
-template<typename PA, typename T>
+template<typename PA, typename T, typename = typename PA::parser_type>
 class mapfn {
 public:
     using parser_type = T;
@@ -532,7 +532,7 @@ constexpr mapfn<PA, T> const operator / (PA const & pa, function<T(typename PA::
 // obtained by a left associative application of all functions returned by op to the values 
 // returned by p. . This parser can for example be used to eliminate **left recursion** which 
 // typically occurs in expression grammars.
-template<typename P, typename OP>
+template<typename P, typename OP, typename = typename P::parser_type, typename = typename OP::parser_type>
 struct chainl {
 private:
     P const p;
@@ -579,7 +579,7 @@ constexpr chainl<P, OP> const operator >= (P const & p, OP const & op) {
 
 // chainr p op x parser one or more occurrences of |p|, separated by op Returns a value obtained by a 
 // **right associative** application of all functions returned by op to the values returned by p.
-template<typename P, typename OP>
+template<typename P, typename OP, typename = typename P::parser_type, typename = typename OP::parser_type>
 struct chainr {
     // TODO: not implemented.
 private:
