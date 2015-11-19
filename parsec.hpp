@@ -75,6 +75,12 @@ public:
     }
     int length() { return this->text.length(); }
     string extract() { cout << "this->text: " << this->text << endl; return this->text; }
+
+    // overload stringstream operator.
+    friend std::ostream & operator << (std::ostream & out, input_t const & t) {
+        out << t.text << endl;
+        return out;
+    }
 };
 
 /**
