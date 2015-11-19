@@ -6,6 +6,7 @@
 #define __PLO_PARSER_HPP__
 
 #include <tuple>
+#include <algorithm>
 #include "parsec.hpp"
 #include "pl0_ast.hpp"
 using namespace std;
@@ -187,12 +188,20 @@ pair<int, pl0_ast_constv *> pl0_const_fn(input_t *text) {
 
 // <标识符> ::= <字母>{<字母>|<数字>}
 pair<int, pl0_ast_identify *> pl0_identify_fn(input_t *text) {
+    static std::array<string, 17> keywords = {{
+        "begin", "end", "for", "downto", "to", "do", "if", "then", "else", "case",
+        "const", "var", "array", "of", "case", "integer", "char"}};
     function<string (pair<pl0_ast_alnum *, vector<pl0_ast_alnum *>>)> fn = [](pair<pl0_ast_alnum *, vector<pl0_ast_alnum *>> const & p) {
         string ans = string(1, p.first ? p.first->val : 0); for (pl0_ast_alnum *c: p.second) { ans.push_back(c ? c->val : 0); } return ans;
     };
     auto parser = pl0_alpha + (++(pl0_alpha | pl0_digit));
     auto res = (spaces >> (parser / fn) << spaces)(text);
-    return make_pair(std::get<0>(res), new pl0_ast_identify(std::get<1>(res)));
+    if (std::get<0>(res) != -1 && std::none_of(keywords.begin(), keywords.end(), [&, res](string s) { return s == std::get<1>(res); })) {
+        return make_pair(std::get<0>(res), new pl0_ast_identify(std::get<1>(res)));
+    }
+    else {
+        return make_pair(-1, new pl0_ast_identify(""));
+    }
 }
 
 // <基本类型> ::= integer | char
@@ -328,37 +337,37 @@ pair<int, pl0_ast_assign_stmt *> pl0_assign_stmt_fn(input_t *text) {
 
 // <语句> ::= <赋值语句>|<条件语句>|<情况语句>|<过程调用语句>|<复合语句>|<读语句>|<写语句>|<for循环语句>|<空>
 pair<int, pl0_ast_stmt *> pl0_stmt_fn(input_t *text) {
-    auto res1 = pl0_assign_stmt(text);
-    if (std::get<0>(res1)) {
-        return make_pair(std::get<0>(res1), new pl0_ast_stmt(pl0_ast_stmt::type_t::ASSIGN_STMT, std::get<1>(res1)));
+    auto res1 = pl0_write_stmt(text);
+    if (std::get<0>(res1) != -1) {
+        return make_pair(std::get<0>(res1), new pl0_ast_stmt(pl0_ast_stmt::type_t::WRITE_STMT, std::get<1>(res1)));
     }
-    auto res2 = pl0_cond_stmt(text);
-    if (std::get<0>(res2)) {
-        return make_pair(std::get<0>(res2), new pl0_ast_stmt(pl0_ast_stmt::type_t::COND_STMT, std::get<1>(res2)));
+    auto res2 = pl0_read_stmt(text);
+    if (std::get<0>(res2) != -1) {
+        return make_pair(std::get<0>(res2), new pl0_ast_stmt(pl0_ast_stmt::type_t::READ_STMT, std::get<1>(res2)));
     }
-    auto res3 = pl0_case_stmt(text);
-    if (std::get<0>(res3)) {
-        return make_pair(std::get<0>(res3), new pl0_ast_stmt(pl0_ast_stmt::type_t::CASE_STMT, std::get<1>(res3)));
+    auto res3 = pl0_assign_stmt(text);
+    if (std::get<0>(res3) != -1) {
+        return make_pair(std::get<0>(res3), new pl0_ast_stmt(pl0_ast_stmt::type_t::ASSIGN_STMT, std::get<1>(res3)));
     }
-    auto res4 = pl0_call_proc(text);
-    if (std::get<0>(res4)) {
-        return make_pair(std::get<0>(res4), new pl0_ast_stmt(pl0_ast_stmt::type_t::CALL_PROC, std::get<1>(res4)));
+    auto res4 = pl0_cond_stmt(text);
+    if (std::get<0>(res4) != -1) {
+        return make_pair(std::get<0>(res4), new pl0_ast_stmt(pl0_ast_stmt::type_t::COND_STMT, std::get<1>(res4)));
     }
-    auto res5 = pl0_compound_stmt(text);
-    if (std::get<0>(res5)) {
-        return make_pair(std::get<0>(res5), new pl0_ast_stmt(pl0_ast_stmt::type_t::COMPOUND_STMT, std::get<1>(res5)));
+    auto res5 = pl0_case_stmt(text);
+    if (std::get<0>(res5) != -1) {
+        return make_pair(std::get<0>(res5), new pl0_ast_stmt(pl0_ast_stmt::type_t::CASE_STMT, std::get<1>(res5)));
     }
-    auto res6 = pl0_write_stmt(text);
-    if (std::get<0>(res6)) {
-        return make_pair(std::get<0>(res6), new pl0_ast_stmt(pl0_ast_stmt::type_t::WRITE_STMT, std::get<1>(res6)));
+    auto res6 = pl0_compound_stmt(text);
+    if (std::get<0>(res6) != -1) {
+        return make_pair(std::get<0>(res6), new pl0_ast_stmt(pl0_ast_stmt::type_t::COMPOUND_STMT, std::get<1>(res6)));
     }
-    auto res7 = pl0_read_stmt(text);
-    if (std::get<0>(res7)) {
-        return make_pair(std::get<0>(res7), new pl0_ast_stmt(pl0_ast_stmt::type_t::READ_STMT, std::get<1>(res7)));
+    auto res7 = pl0_for_stmt(text);
+    if (std::get<0>(res7) != -1) {
+        return make_pair(std::get<0>(res7), new pl0_ast_stmt(pl0_ast_stmt::type_t::FOR_STMT, std::get<1>(res7)));
     }
-    auto res8 = pl0_for_stmt(text);
-    if (std::get<0>(res8)) {
-        return make_pair(std::get<0>(res8), new pl0_ast_stmt(pl0_ast_stmt::type_t::FOR_STMT, std::get<1>(res8)));
+    auto res8 = pl0_call_proc(text);
+    if (std::get<0>(res8) != -1) {
+        return make_pair(std::get<0>(res8), new pl0_ast_stmt(pl0_ast_stmt::type_t::CALL_PROC, std::get<1>(res8)));
     }
     // default: empty statement.
     return make_pair(0, new pl0_ast_null_stmt());
@@ -490,13 +499,13 @@ pair<int, pl0_ast_for_stmt *> pl0_for_stmt_fn(input_t *text) {
 // <过程调用语句> ::= <标识符>[<实在参数表>]
 pair<int, pl0_ast_call_proc *> pl0_call_proc_fn(input_t *text) {
     auto parser = pl0_identify + (~pl0_arg_list);
-    auto res = parser(text);
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_call_proc(std::get<1>(res).first, std::get<1>(res).second));
 }
 
 // <复合语句> ::= begin<语句>{; <语句>}end
 pair<int, pl0_ast_compound_stmt *> pl0_compound_stmt_fn(input_t *text) {
-    auto parser = string_literal("begin") >> (pl0_stmt % character(',')) << string_literal("end");
+    auto parser = string_literal("begin") >> (pl0_stmt % (spaces >> character(';') << spaces)) << spaces << string_literal("end");
     auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_compound_stmt(std::get<1>(res)));
 }
@@ -504,7 +513,7 @@ pair<int, pl0_ast_compound_stmt *> pl0_compound_stmt_fn(input_t *text) {
 // <读语句> ::= read'('<标识符>{,<标识符>}')'
 pair<int, pl0_ast_read_stmt *> pl0_read_stmt_fn(input_t *text) {
     auto parser = string_literal("read") >> spaces >> character('(') >> (pl0_identify % character(',')) << character(')');
-    auto res = parser(text);
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_read_stmt(std::get<1>(res)));
 }
 
@@ -513,15 +522,15 @@ pair<int, pl0_ast_write_stmt *> pl0_write_stmt_fn(input_t *text) {
     auto parser1 = pl0_charseq + (character(',') >> pl0_expression);
     auto parser2 = pl0_charseq;
     auto parser3 = pl0_expression;
-    auto res1 = (string_literal("read") >> spaces >> character('(') >> parser1 << character(')'))(text);
+    auto res1 = (spaces >> (string_literal("write") >> spaces >> character('(') >> parser1 << character(')')) << spaces)(text);
     if (std::get<0>(res1) != -1) {
         return make_pair(std::get<0>(res1), new pl0_ast_write_stmt(std::get<1>(res1).first, std::get<1>(res1).second));
     }
-    auto res2 = (string_literal("read") >> spaces >> character('(') >> parser2 << character(')'))(text);
+    auto res2 = (spaces >> (string_literal("write") >> spaces >> character('(') >> parser2 << character(')')) << spaces)(text);
     if (std::get<0>(res2) != -1) {
         return make_pair(std::get<0>(res2), new pl0_ast_write_stmt(std::get<1>(res2)));
     }
-    auto res3 = (string_literal("read") >> spaces >> character('(') >> parser3 << character(')'))(text);
+    auto res3 = (spaces >> (string_literal("write") >> spaces >> character('(') >> parser3 << character(')')) << spaces)(text);
     return make_pair(std::get<0>(res3), new pl0_ast_write_stmt(std::get<1>(res3)));
 }
 

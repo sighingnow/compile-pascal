@@ -60,12 +60,12 @@ struct pl0_ast_prog {
         std::vector<struct pl0_ast_executable *> const & exes,
         struct pl0_ast_compound_stmt *stmts)
         : consts(consts), vars(vars), exes(exes), stmts(stmts) {
-        cout << "parser prog." << endl;
+        // cout << "parser prog." << endl;
     }
 };
 struct pl0_ast_const_stmt: pl0_ast_prog {
     std::vector<struct pl0_ast_const_define *> stmt;
-    pl0_ast_const_stmt(std::vector<pl0_ast_const_define *> const & stmt): stmt(stmt) {} 
+    pl0_ast_const_stmt(std::vector<pl0_ast_const_define *> const & stmt): stmt(stmt) {}
 };
 struct pl0_ast_const_define {
     struct pl0_ast_identify *id;
@@ -173,7 +173,7 @@ struct pl0_ast_term {
 };
 struct pl0_ast_factor {
     enum type_t {
-        ID, UNSIGNED, EXPR, CALL_FUNC, ARRAY_E
+        ID = 1, UNSIGNED = 2, EXPR = 3, CALL_FUNC = 4, ARRAY_E = 5
     };
     type_t t;
     union {
@@ -185,11 +185,11 @@ struct pl0_ast_factor {
     std::pair<struct pl0_ast_identify *, struct pl0_ast_expression *> arraye; // for array access.
     pl0_ast_factor(type_t t, void *ptr): t(t) {
         switch (this->t) {
-            case type_t::ID: this->ptr.id = static_cast<pl0_ast_identify *>(ptr);
-            case type_t::EXPR: this->ptr.expr = static_cast<pl0_ast_expression *>(ptr);
-            case type_t::CALL_FUNC: this->ptr.call_func = static_cast<pl0_ast_call_func *>(ptr);
-            case type_t::UNSIGNED: this->ptr.unsignedn = static_cast<pl0_ast_unsigned *>(ptr);
-            default: throw(this->t);
+            case type_t::ID: this->ptr.id = static_cast<pl0_ast_identify *>(ptr); break;
+            case type_t::EXPR: this->ptr.expr = static_cast<pl0_ast_expression *>(ptr); break;
+            case type_t::CALL_FUNC: this->ptr.call_func = static_cast<pl0_ast_call_func *>(ptr); break;
+            case type_t::UNSIGNED: this->ptr.unsignedn = static_cast<pl0_ast_unsigned *>(ptr); break;
+            default: cout << "unknown factor type: " << t << endl; throw(this->t);
         }
     }
     pl0_ast_factor(std::pair<struct pl0_ast_identify *, struct pl0_ast_expression *> const & arraye): t(type_t::ARRAY_E), arraye(arraye) {}
