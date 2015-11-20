@@ -263,7 +263,7 @@ pair<int, pl0_ast_const_stmt *> pl0_const_stmt_fn(input_t *text) {
 
 // <形式参数段> ::= [var]<标识符>{, <标识符>}: <基本类型>
 pair<int, pl0_ast_param_group *> pl0_param_group_fn(input_t *text) {
-    auto parser = (spaces >> (~string_literal("var")) << spaces) >> (pl0_identify % character(',')) + (character(':') >> pl0_primitive_type);
+    auto parser = ((spaces >> (~string_literal("var")) << spaces) >> (pl0_identify % character(','))) + (character(':') >> pl0_primitive_type);
     auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_param_group(std::get<1>(res).first, std::get<1>(res).second));
 }
@@ -290,7 +290,7 @@ pair<int, pl0_ast_procedure_header *> pl0_procedure_header_fn(input_t *text) {
 
 // <函数首部> ::= function <标识符>[<形式参数表>]: <基本类型>;
 pair<int, pl0_ast_function_header *> pl0_function_header_fn(input_t *text) {
-    auto parser = string_literal("function") >> (pl0_identify + (~pl0_param_list)) + (character(':') >> pl0_primitive_type << character(';'));
+    auto parser = (string_literal("function") >> (pl0_identify + (~pl0_param_list))) + (character(':') >> pl0_primitive_type << character(';'));
     auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_function_header(std::get<1>(res).first.first, std::get<1>(res).first.second, std::get<1>(res).second));
 }
