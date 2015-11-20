@@ -23,7 +23,7 @@ endif
 UTILS								:= 
 
 ## default target.
-all: clean googletest test
+all: clean googletest test dist
 
 googletest: $(LIBGTEST_DIR)
 	make --dir $(LIBGTEST_DIR) CXX=$(CXX)
@@ -31,6 +31,8 @@ googletest: $(LIBGTEST_DIR)
 test: test_pl0_parser.out
 	$(foreach case, $^, ./$(case))
 .PHONY: test
+
+dist: pl0c.out
 
 %.out: %.o $(UTILS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
