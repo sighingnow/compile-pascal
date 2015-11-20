@@ -140,7 +140,7 @@ private:
     P const parser;
 public:
     using V = typename P::parser_type;
-    constexpr ParsecT<P>(P parser): parser(parser) {}
+    constexpr ParsecT(P const & parser): parser(parser) {}
     string name() const { return "ParsecT"; }
     ValueT<V> parse(input_t *text) const {
         pair<int, int> loc = make_pair(1, 1);
