@@ -1,15 +1,26 @@
 ## Makefile for libparsec.
 
 MAKE 								:= make
+
 CXX									:= clang++
-CXXFLAGS							:= -Wall -Wextra -std=c++11
+CXXFLAGS							:= -Wall -Wextra -std=c++11 $(CXX_FLAGS_$(ARCH))
 LDFLAGS 							:= -O
-INCLUDE								:= -I .
+
+## add -Wa, -mbig-obj option to mingw-w64.
+SYS									:= $(shell $(CXX) -dumpmachine)
+ifeq ($(CXX), g++)
+ifneq (, $(findstring mingw, $(SYS)))
+ifneq (, $(findstring x86_64, $(SYS)))
+CXXFLAGS 							+= -Wa,-mbig-obj
+endif
+endif
+endif
 
 LIBGTEST_DIR 						:= ./gtest
 LIBPARSEC_DIR						:= ./libparsec
-
 LDFLAGS								+=  -L $(LIBGTEST_DIR) -lgtest_main -lgtest
+
+INCLUDE								:= -I .
 INCLUDE 							+= -I $(LIBGTEST_DIR)/include
 INCLUDE 							+= -I $(LIBPARSEC_DIR)/
 
