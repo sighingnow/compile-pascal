@@ -23,7 +23,7 @@ endif
 UTILS								:= 
 
 ## default target.
-all: clean googletest test dist
+all: clean googletest test
 
 googletest: $(LIBGTEST_DIR)
 	make --dir $(LIBGTEST_DIR) CXX=$(CXX)

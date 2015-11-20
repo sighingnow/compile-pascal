@@ -118,14 +118,15 @@ parser_t<pl0_ast_alnum *> pl0_digit("pl0 digit", pl0_digit_fn);
 
 // <程序> ::= <分程序>.
 pair<int, pl0_ast_program *> pl0_program_fn(input_t *text) {
-    auto res = (pl0_prog << character('.'))(text);
+    auto parser = pl0_prog << character('.');
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_program(std::get<1>(res)));
 }
 
 // <分程序> ::= [<常量说明部分>][<变量说明部分>]{[<过程说明部分>]| [<函数说明部分>]}<复合语句>
 pair<int, pl0_ast_prog *> pl0_prog_fn(input_t *text) {
     auto parser = ((~pl0_const_stmt) + (~pl0_var_stmt)) + (++pl0_executable + pl0_compound_stmt);
-    auto res = parser(text);
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_prog(
         std::get<1>(res).first.first,
         std::get<1>(res).first.second,
@@ -326,8 +327,8 @@ pair<int, pl0_ast_null_stmt *> pl0_null_stmt_fn(input_t *) {
 
 // <赋值语句> ::= <标识符> := <表达式>| <函数标识符> := <表达式> | <标识符>'['<表达式>']':= <表达式>
 pair<int, pl0_ast_assign_stmt *> pl0_assign_stmt_fn(input_t *text) {
-    auto parser = pl0_identify + (~(character('[') >> pl0_expression << character(']'))) + (string_literal(":=") >> pl0_expression);
-    auto res = parser(text);
+    auto parser = pl0_identify + (~(character('[') >> pl0_expression << character(']'))) + (spaces >> string_literal(":=") >> pl0_expression);
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_assign_stmt(
         std::get<1>(res).first.first,
         std::get<1>(res).first.second,
@@ -441,13 +442,13 @@ pair<int, pl0_ast_comp_op *> pl0_comp_op_fn(input_t *text) {
         | string_literal("<")
         | string_literal(">")
         | string_literal("=");
-    auto res = parser(text);
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_comp_op(std::get<1>(res)));
 }
 
 // <条件> ::= <表达式><关系运算符><表达式>
 pair<int, pl0_ast_condtion *> pl0_condition_fn(input_t *text) {
-    auto res = (pl0_expression + pl0_comp_op + pl0_expression)(text);
+    auto res = (spaces >> (pl0_expression + pl0_comp_op + pl0_expression) << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_condtion(
         std::get<1>(res).first.first,
         std::get<1>(res).first.second,
@@ -456,10 +457,14 @@ pair<int, pl0_ast_condtion *> pl0_condition_fn(input_t *text) {
 }
 
 // <条件语句> ::= if<条件>then<语句> | if<条件>then<语句>else<语句>
+// **** 增加限制：else 后面的 <语句> 不能为 <空> ****
 pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *text) {
     auto parser = (string_literal("if") >> pl0_condition) + (string_literal("then") >> pl0_stmt)
         + ~(string_literal("else") >> pl0_stmt);
-    auto res = parser(text);
+    auto res = (spaces >> parser << spaces)(text);
+    if (std::get<1>(res).second && std::get<1>(res).second->t == pl0_ast_stmt::type_t::NULL_STMT) {
+        return make_pair(-1, new pl0_ast_cond_stmt(nullptr, nullptr, nullptr));
+    }
     return make_pair(std::get<0>(res), new pl0_ast_cond_stmt(
         std::get<1>(res).first.first,
         std::get<1>(res).first.second,
@@ -470,8 +475,8 @@ pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *text) {
 // <情况语句> ::= case <表达式> of <情况表元素>{; <情况表元素>} end
 pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *text) {
     auto parser = (string_literal("case") >> pl0_expression << string_literal("of"))
-        + ((pl0_case_term % character(';')) << string_literal("end"));
-    auto res = parser(text);
+        + ((pl0_case_term % character(';')) << (spaces >> string_literal("end")));
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_case_stmt(std::get<1>(res).first, std::get<1>(res).second));
 }
 
@@ -482,17 +487,21 @@ pair<int, pl0_ast_case_term *> pl0_cast_term_fn(input_t *text) {
 }
 
 // <for循环语句> ::= for <标识符> := <表达式> (downto | to) <表达式> do <语句> // 步长为1
+// **** 增加限制：do 后面的 <语句> 不能为 <空> ****
 pair<int, pl0_ast_for_stmt *> pl0_for_stmt_fn(input_t *text) {
     auto parser = ((string_literal("for") >> pl0_identify) + (string_literal(":=") >> pl0_expression))
-        + (spaces >> (string_literal("down") | string_literal("up")) << spaces)
+        + (spaces >> (string_literal("downto") | string_literal("to")) << spaces)
         + (pl0_expression + (string_literal("do") >> pl0_stmt));
-    auto res = parser(text);
+    auto res = (spaces >> parser << spaces)(text);
+    if (std::get<1>(res).second.second && std::get<1>(res).second.second->t == pl0_ast_stmt::type_t::NULL_STMT) {
+        return make_pair(-1, new pl0_ast_for_stmt(nullptr, nullptr, nullptr, nullptr, nullptr));
+    }
     return make_pair(std::get<0>(res), new pl0_ast_for_stmt(
         std::get<1>(res).first.first.first,
         std::get<1>(res).first.first.second,
         std::get<1>(res).second.first,
         std::get<1>(res).second.second,
-        std::get<1>(res).first.second == "down" ? new pl0_ast_constv(-1) : new pl0_ast_constv(1)
+        std::get<1>(res).first.second == "downto" ? new pl0_ast_constv(-1) : new pl0_ast_constv(1)
     ));
 }
 
