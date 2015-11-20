@@ -94,6 +94,7 @@ struct ValueT {
     int len;
     V const actual;
     string expected;
+    bool strict;
 
     string to_string(int n) const { return ::to_string(n); }
     string to_string(char c) const { return string(1, c); }
@@ -108,15 +109,15 @@ struct ValueT {
             + "    expected: " + to_string(expected) + "\n";
     }
 
-    ValueT<V>(bool status, pair<int, int> loc, int len, V const & actual, string const & expected)
-        : status(status), loc(loc), len(len), actual(actual), expected(expected) {}
+    ValueT<V>(bool status, pair<int, int> loc, int len, V const & actual, string const & expected, bool const & strict = false)
+        : status(status), loc(loc), len(len), actual(actual), expected(expected), strict(strict) {}
 
-    static ValueT<V> Success(pair<int, int> loc, int len, V const & actual, string const & expected) {
-        return ValueT<V>(true, loc, len, actual, expected);
+    static ValueT<V> Success(pair<int, int> loc, int len, V const & actual, string const & expected, bool const & strict = false) {
+        return ValueT<V>(true, loc, len, actual, expected, strict);
     }
 
-    static ValueT<V> Failure(pair<int, int> loc, int len, V const & actual, string const & expected) {
-        return ValueT<V>(false, loc, len, actual, expected);
+    static ValueT<V> Failure(pair<int, int> loc, int len, V const & actual, string const & expected, bool const & strict = false) {
+        return ValueT<V>(false, loc, len, actual, expected, strict);
     }
 };
 
@@ -153,7 +154,11 @@ public:
             cout << string("!!!Exception: ") + "unknown exception." << endl;
         }
         text = text->next(std::get<0>(res)); // move ahead offset.
-        return ValueT<V>(std::get<0>(res) != -1, loc, std::get<0>(res), std::get<1>(res), std::get<2>(res));
+        if (!text->empty()) {
+            // cout << "NOT COMSUME ALL TOKEN IN THE INPUT STREAM!" << endl;
+            // cout << "    in stream: " << (*text) << endl;
+        }
+        return ValueT<V>(std::get<0>(res) != -1, loc, std::get<0>(res), std::get<1>(res), std::get<2>(res), text->empty());
     }
     ValueT<V> operator () (input_t *text) const {
         return this->parse(text);
