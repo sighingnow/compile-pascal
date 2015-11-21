@@ -1,6 +1,7 @@
 #ifndef __PARSE_TOOL_HPP__
 #define __PARSE_TOOL_HPP__
 
+#include <vector>
 #include <functional>
 using namespace std;
 
