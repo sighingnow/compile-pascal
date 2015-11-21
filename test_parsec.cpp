@@ -1,5 +1,22 @@
 #include "gtest/gtest.h"
-#include "parsec.hpp"
+
+#include "input_t.hpp"
+#include "parser.hpp"
+#include "combinator.hpp"
+#include "parse_tool.hpp"
+
+struct spaces {
+    using parser_type = string;
+    constexpr spaces() {}
+    string name() const { return "spaces"; }
+    tuple<int, parser_type, string> operator () (input_t *text) const {
+        function<string (vector<char>)> fn = [](vector<char> const & vec) {
+            string ans; for (auto c: vec) { ans.push_back(c); } return ans;
+        };
+        auto parser = (++space) / fn;
+        return parser(text);
+    }
+} static const spaces;
 
 // Primitive parsers.
 
