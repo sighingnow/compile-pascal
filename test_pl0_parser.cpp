@@ -3,7 +3,58 @@
 #include <streambuf>
 
 #include "gtest/gtest.h"
-#include "pl0_parser.hpp"
+
+#include "input_t.hpp"
+#include "parse_tool.hpp"
+
+#include "pl0_ast.hpp"
+
+using namespace std;
+
+extern parser_t<pl0_ast_program *> pl0_program;
+extern parser_t<pl0_ast_prog *> pl0_prog;
+extern parser_t<pl0_ast_const_stmt *> pl0_const_stmt;
+extern parser_t<pl0_ast_const_define *> pl0_const_define;
+extern parser_t<pl0_ast_constv *> pl0_const;
+extern parser_t<pl0_ast_constv *> pl0_char;
+extern parser_t<pl0_ast_charseq *> pl0_charseq;
+extern parser_t<pl0_ast_constv *> pl0_unsigned;
+extern parser_t<pl0_ast_identify *> pl0_identify;
+extern parser_t<pl0_ast_var_stmt *> pl0_var_stmt;
+extern parser_t<pl0_ast_var_define *> pl0_var_define;
+extern parser_t<pl0_ast_type *> pl0_type;
+extern parser_t<pl0_ast_primitive_type *> pl0_primitive_type;
+extern parser_t<pl0_ast_executable *> pl0_executable;
+extern parser_t<pl0_ast_procedure_stmt *> pl0_procedure_stmt;
+extern parser_t<pl0_ast_function_stmt *> pl0_function_stmt;
+extern parser_t<pl0_ast_procedure_header *> pl0_procedure_header;
+extern parser_t<pl0_ast_function_header *> pl0_function_header;
+extern parser_t<pl0_ast_param_list *> pl0_param_list;
+extern parser_t<pl0_ast_param_group *> pl0_param_group;
+extern parser_t<pl0_ast_stmt *> pl0_stmt;
+extern parser_t<pl0_ast_null_stmt *> pl0_null_stmt; // empty statement, not in grammar.
+extern parser_t<pl0_ast_assign_stmt *> pl0_assign_stmt;
+extern parser_t<pl0_ast_function_id *> pl0_function_id;
+extern parser_t<pl0_ast_expression *> pl0_expression;
+extern parser_t<pl0_ast_term *> pl0_term;
+extern parser_t<pl0_ast_factor *> pl0_factor;
+extern parser_t<pl0_ast_call_func *> pl0_call_func;
+extern parser_t<pl0_ast_arg_list *> pl0_arg_list;
+extern parser_t<pl0_ast_arg *> pl0_arg;
+extern parser_t<pl0_ast_addop *> pl0_addop;
+extern parser_t<pl0_ast_multop *> pl0_multop;
+extern parser_t<pl0_ast_condtion *> pl0_condition;
+extern parser_t<pl0_ast_comp_op *> pl0_comp_op;
+extern parser_t<pl0_ast_cond_stmt *> pl0_cond_stmt;
+extern parser_t<pl0_ast_case_stmt *> pl0_case_stmt;
+extern parser_t<pl0_ast_case_term *> pl0_case_term;
+extern parser_t<pl0_ast_for_stmt *> pl0_for_stmt;
+extern parser_t<pl0_ast_call_proc *> pl0_call_proc;
+extern parser_t<pl0_ast_compound_stmt *> pl0_compound_stmt;
+extern parser_t<pl0_ast_read_stmt *> pl0_read_stmt;
+extern parser_t<pl0_ast_write_stmt *> pl0_write_stmt;
+extern parser_t<pl0_ast_alnum *> pl0_alpha;
+extern parser_t<pl0_ast_alnum *> pl0_digit;
 
 // Test parser for PL0 grammar.
 
@@ -232,30 +283,6 @@ TEST(PL0Parser, ConditionStmt) {
     EXPECT_TRUE(res.status);
     EXPECT_EQ(res.actual->else_block, nullptr);
     EXPECT_NE(static_cast<pl0_ast_cond_stmt *>(res.actual->then_block)->else_block, nullptr);
-}
-
-TEST(PL0Parser, ArrayAccess) {
-    auto parser1 = character('[') >> pl0_expression << character(']');
-    auto parse_tool1 = ParsecT<decltype(parser1)>(parser1);
-    EXPECT_TRUE(parse_tool1(new input_t("[100]")).status);
-    EXPECT_TRUE(parse_tool1(new input_t("[-1]")).status);
-
-    auto parser2 = pl0_identify + parser1;
-    auto parse_tool2 = ParsecT<decltype(parser2)>(parser2);
-    EXPECT_TRUE(parse_tool2(new input_t("a[100]")).status);
-    EXPECT_TRUE(parse_tool2(new input_t("a[-23]")).status);
-    EXPECT_FALSE(parse_tool2(new input_t("a['d']")).status);
-
-    auto parser3 = pl0_identify + (~parser1);
-    auto parse_tool3 = ParsecT<decltype(parser3)>(parser3);
-    EXPECT_TRUE(parse_tool3(new input_t("a[100]")).status);
-    EXPECT_TRUE(parse_tool3(new input_t("a[100]")).strict);
-    EXPECT_TRUE(parse_tool3(new input_t("a[-100]")).status);
-    EXPECT_TRUE(parse_tool3(new input_t("a[-(-100)]")).strict);
-    EXPECT_TRUE(parse_tool3(new input_t("a")).status);
-    EXPECT_TRUE(parse_tool3(new input_t("a")).strict);
-    EXPECT_TRUE(parse_tool3(new input_t("a['d']")).status);
-    EXPECT_FALSE(parse_tool3(new input_t("a['d']")).strict);
 }
 
 TEST(PL0Parser, AssignStmt) {

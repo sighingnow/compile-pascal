@@ -1,6 +1,10 @@
 
+#ifndef __PL0_AST_HPP__
+#define __PL0_AST_HPP__
+
 #include <string>
 #include <vector>
+using namespace std;
 
 struct pl0_ast_t;
 struct pl0_ast_program;
@@ -287,3 +291,5 @@ struct pl0_ast_alnum {
     pl0_ast_alnum(char val): val(val) {}
 };
 
+
+#endif /* __PL0_AST_HPP__ */

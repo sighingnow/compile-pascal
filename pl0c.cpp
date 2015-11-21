@@ -2,7 +2,14 @@
 #include <fstream>
 #include <streambuf>
 
-#include "pl0_parser.hpp"
+#include "input_t.hpp"
+#include "parse_tool.hpp"
+
+#include "pl0_ast.hpp"
+
+using namespace std;
+
+extern parser_t<pl0_ast_program *> pl0_program;
 
 input_t *load_case(char const *fname) {
     std::ifstream t(fname);

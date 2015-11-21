@@ -31,10 +31,13 @@ else
 	CXXFLAGS						+= -static -O3 -DNDEBUG
 endif
 
-UTILS								:= 
+UTILS								:= pl0_global.o pl0_parser.o
+
+## prevent make deleting the intermedia object file.
+.SECONDARY: $(UTILS)
 
 ## default target.
-all: clean googletest test
+all: googletest test
 
 googletest: $(LIBGTEST_DIR)
 	make --dir $(LIBGTEST_DIR) CXX=$(CXX)
@@ -45,7 +48,7 @@ test: test_pl0_parser.out
 
 dist: pl0c.out
 
-%.out: %.o $(UTILS)
+%.out: $(UTILS) %.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 %.o: %.cpp
