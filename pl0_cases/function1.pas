@@ -20,7 +20,24 @@ end;
 
 begin
     for i := 1 to 10 do begin
-        read(k[i]);
+        begin
+            begin
+                begin
+                    begin
+                        begin
+                            begin
+                                read(k[i]);
+                            end
+                        end
+                    end;
+                    begin
+                        begin
+                            a := 1 + 2;
+                        end;
+                    end;
+                end
+            end
+        end
     end;
     write(f(k[1], k[2], k[3], k[4], k[5], k[6]));
     write(f(1, 2, 3));    

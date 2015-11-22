@@ -18,7 +18,7 @@ endif
 
 LIBGTEST_DIR 						:= ./gtest
 LIBPARSEC_DIR						:= ./libparsec
-LDFLAGS								+=  -L $(LIBGTEST_DIR) -lgtest_main -lgtest
+GTEST_LDFLAGS						:=  -L $(LIBGTEST_DIR) -lgtest_main -lgtest
 
 INCLUDE								:= -I .
 INCLUDE 							+= -I $(LIBGTEST_DIR)/include
@@ -26,12 +26,12 @@ INCLUDE 							+= -I $(LIBPARSEC_DIR)/
 
 DEBUG 								:= 1
 ifeq ($(DEBUG), 1)
-	CXXFLAGS 						+= -O0 -ggdb -DDEBUG
+	CXXFLAGS 						+= -O0 -ggdb -DDEBUG -DTRACE
 else
 	CXXFLAGS						+= -static -O3 -DNDEBUG
 endif
 
-UTILS								:= pl0_global.o pl0_parser.o
+UTILS								:= pl0_global.o pl0_parser.o pl0_tac_gen.o
 
 ## prevent make deleting the intermedia object file.
 .SECONDARY: $(UTILS)
@@ -48,8 +48,11 @@ test: test_pl0_parser.out
 
 dist: pl0c.out
 
-%.out: $(UTILS) %.o
+pl0c.out: $(UTILS) pl0c.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+
+%.out: $(UTILS) %.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(GTEST_LDFLAGS) $^ -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<

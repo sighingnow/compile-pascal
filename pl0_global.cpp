@@ -90,8 +90,8 @@ pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *);
 parser_t<pl0_ast_cond_stmt *> pl0_cond_stmt("pl0 cond stmt", pl0_cond_stmt_fn);
 pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *);
 parser_t<pl0_ast_case_stmt *> pl0_case_stmt("pl0 case stmt", pl0_case_stmt_fn);
-pair<int, pl0_ast_case_term *> pl0_cast_term_fn(input_t *);
-parser_t<pl0_ast_case_term *> pl0_case_term("pl0 case term", pl0_cast_term_fn);
+pair<int, pl0_ast_case_term *> pl0_case_term_fn(input_t *);
+parser_t<pl0_ast_case_term *> pl0_case_term("pl0 case term", pl0_case_term_fn);
 pair<int, pl0_ast_for_stmt *> pl0_for_stmt_fn(input_t *);
 parser_t<pl0_ast_for_stmt *> pl0_for_stmt("pl0 for stmt", pl0_for_stmt_fn);
 pair<int, pl0_ast_call_proc *> pl0_call_proc_fn(input_t *);
@@ -107,5 +107,31 @@ pair<int, pl0_ast_alnum *> pl0_alpha_fn(input_t *);
 parser_t<pl0_ast_alnum *> pl0_alpha("pl0 alpha", pl0_alpha_fn);
 pair<int, pl0_ast_alnum *> pl0_digit_fn(input_t *);
 parser_t<pl0_ast_alnum *> pl0_digit("pl0 digit", pl0_digit_fn);
+
+
+
+void IRBuilder::emit(string const ir) {
+    this->irs.emplace_back(ir);
+}
+int IRBuilder::emitlabel(int label) {
+    irs.emplace_back( "L" + std::to_string(label) + ":");
+    return label;
+}
+int IRBuilder::makelabel() {
+    return this->label++;
+}
+string IRBuilder::maketmp() {
+    return "~t" + std::to_string(temp++);
+}
+string IRBuilder::makeret() {
+    return "ret" + std::to_string(ret++);
+}
+void IRBuilder::dump() {
+    for (auto ir: irs) {
+        cout << ir << endl;
+    }
+}
+
+struct IRBuilder irb;
 
 

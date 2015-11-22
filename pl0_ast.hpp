@@ -52,13 +52,15 @@ struct pl0_ast_alnum;
 
 struct IRBuilder {
 private:
-    int label = 0, temp = 0;
+    int label = 0, temp = 0, ret = 0;
     std::vector<std::string> irs;
 public:
     IRBuilder() {}
     void emit(string const);
     int emitlabel(int label);
-    int maketmp();
+    int makelabel();
+    string maketmp();
+    string makeret();
     void dump();
 };
 
@@ -172,9 +174,9 @@ struct pl0_ast_null_stmt: pl0_ast_stmt {
 }; // empty statement, not in grammar.
 struct pl0_ast_assign_stmt: pl0_ast_stmt {
     struct pl0_ast_identify *id;
-    struct pl0_ast_expression *val;
     struct pl0_ast_expression *idx;
-    pl0_ast_assign_stmt(pl0_ast_identify *id, pl0_ast_expression *val, pl0_ast_expression *idx): pl0_ast_stmt(pl0_ast_stmt::type_t::ASSIGN_STMT), id(id), val(val), idx(idx) {}
+    struct pl0_ast_expression *val;
+    pl0_ast_assign_stmt(pl0_ast_identify *id, pl0_ast_expression *idx, pl0_ast_expression *val): pl0_ast_stmt(pl0_ast_stmt::type_t::ASSIGN_STMT), id(id), idx(idx), val(val) {}
 };
 struct pl0_ast_function_id {
     struct pl0_ast_identify *id;
@@ -195,7 +197,7 @@ struct pl0_ast_factor {
     type_t t;
     union {
         struct pl0_ast_identify *id;
-        struct pl0_ast_unsigned *unsignedn;
+        struct pl0_ast_constv *unsignedn;
         struct pl0_ast_expression *expr;
         struct pl0_ast_call_func *call_func;
     } ptr;
@@ -205,7 +207,7 @@ struct pl0_ast_factor {
             case type_t::ID: this->ptr.id = static_cast<pl0_ast_identify *>(ptr); break;
             case type_t::EXPR: this->ptr.expr = static_cast<pl0_ast_expression *>(ptr); break;
             case type_t::CALL_FUNC: this->ptr.call_func = static_cast<pl0_ast_call_func *>(ptr); break;
-            case type_t::UNSIGNED: this->ptr.unsignedn = static_cast<pl0_ast_unsigned *>(ptr); break;
+            case type_t::UNSIGNED: this->ptr.unsignedn = static_cast<pl0_ast_constv *>(ptr); break;
             default: cout << "unknown factor type: " << t << endl; throw(this->t);
         }
     }
