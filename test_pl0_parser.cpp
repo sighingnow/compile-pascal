@@ -282,7 +282,7 @@ TEST(PL0Parser, ConditionStmt) {
     auto res = parse_tool(new input_t("if 1 <> 2 then if 3=3 then write(\"abcd\") else write(\"1234\")"));
     EXPECT_TRUE(res.status);
     EXPECT_EQ(res.actual->else_block, nullptr);
-    EXPECT_NE(static_cast<pl0_ast_cond_stmt *>(res.actual->then_block)->else_block, nullptr);
+    EXPECT_NE(dynamic_cast<pl0_ast_cond_stmt *>(res.actual->then_block)->else_block, nullptr);
 }
 
 TEST(PL0Parser, AssignStmt) {

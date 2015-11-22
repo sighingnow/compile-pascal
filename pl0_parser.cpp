@@ -291,35 +291,35 @@ pair<int, pl0_ast_assign_stmt *> pl0_assign_stmt_fn(input_t *text) {
 pair<int, pl0_ast_stmt *> pl0_stmt_fn(input_t *text) {
     auto res1 = pl0_write_stmt(text);
     if (std::get<0>(res1) != -1) {
-        return make_pair(std::get<0>(res1), new pl0_ast_stmt(pl0_ast_stmt::type_t::WRITE_STMT, std::get<1>(res1)));
+        return make_pair(std::get<0>(res1), std::get<1>(res1));
     }
     auto res2 = pl0_read_stmt(text);
     if (std::get<0>(res2) != -1) {
-        return make_pair(std::get<0>(res2), new pl0_ast_stmt(pl0_ast_stmt::type_t::READ_STMT, std::get<1>(res2)));
+        return make_pair(std::get<0>(res2), std::get<1>(res2));
     }
     auto res3 = pl0_assign_stmt(text);
     if (std::get<0>(res3) != -1) {
-        return make_pair(std::get<0>(res3), new pl0_ast_stmt(pl0_ast_stmt::type_t::ASSIGN_STMT, std::get<1>(res3)));
+        return make_pair(std::get<0>(res3), std::get<1>(res3));
     }
     auto res4 = pl0_cond_stmt(text);
     if (std::get<0>(res4) != -1) {
-        return make_pair(std::get<0>(res4), new pl0_ast_stmt(pl0_ast_stmt::type_t::COND_STMT, std::get<1>(res4)));
+        return make_pair(std::get<0>(res4), std::get<1>(res4));
     }
     auto res5 = pl0_case_stmt(text);
     if (std::get<0>(res5) != -1) {
-        return make_pair(std::get<0>(res5), new pl0_ast_stmt(pl0_ast_stmt::type_t::CASE_STMT, std::get<1>(res5)));
+        return make_pair(std::get<0>(res5), std::get<1>(res5));
     }
     auto res6 = pl0_compound_stmt(text);
     if (std::get<0>(res6) != -1) {
-        return make_pair(std::get<0>(res6), new pl0_ast_stmt(pl0_ast_stmt::type_t::COMPOUND_STMT, std::get<1>(res6)));
+        return make_pair(std::get<0>(res6), std::get<1>(res6));
     }
     auto res7 = pl0_for_stmt(text);
     if (std::get<0>(res7) != -1) {
-        return make_pair(std::get<0>(res7), new pl0_ast_stmt(pl0_ast_stmt::type_t::FOR_STMT, std::get<1>(res7)));
+        return make_pair(std::get<0>(res7), std::get<1>(res7));
     }
     auto res8 = pl0_call_proc(text);
     if (std::get<0>(res8) != -1) {
-        return make_pair(std::get<0>(res8), new pl0_ast_stmt(pl0_ast_stmt::type_t::CALL_PROC, std::get<1>(res8)));
+        return make_pair(std::get<0>(res8), std::get<1>(res8));
     }
     // default: empty statement.
     return make_pair(0, new pl0_ast_null_stmt());
@@ -432,7 +432,7 @@ pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *text) {
 }
 
 // <情况表元素> ::= <常量> : <语句>
-pair<int, pl0_ast_case_term *> pl0_cast_term_fn(input_t *text) {
+pair<int, pl0_ast_case_term *> pl0_case_term_fn(input_t *text) {
     auto res = ((pl0_const << character(':')) + pl0_stmt)(text);
     return make_pair(std::get<0>(res), new pl0_ast_case_term(std::get<1>(res).first, std::get<1>(res).second));
 }

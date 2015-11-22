@@ -2,6 +2,7 @@
 #ifndef __PL0_AST_HPP__
 #define __PL0_AST_HPP__
 
+#include <iostream>
 #include <string>
 #include <vector>
 using namespace std;
@@ -48,6 +49,18 @@ struct pl0_ast_compound_stmt;
 struct pl0_ast_read_stmt;
 struct pl0_ast_write_stmt;
 struct pl0_ast_alnum;
+
+struct IRBuilder {
+private:
+    int label = 0, temp = 0;
+    std::vector<std::string> irs;
+public:
+    IRBuilder() {}
+    void emit(string const);
+    int emitlabel(int label);
+    int maketmp();
+    void dump();
+};
 
 struct pl0_ast_program {
     struct pl0_ast_prog *program;
@@ -99,7 +112,7 @@ struct pl0_ast_var_define {
 };
 struct pl0_ast_type {
     struct pl0_ast_primitive_type *type;
-    int len;
+    int len; // if array, len = -1
     pl0_ast_type(pl0_ast_primitive_type *type, int len): type(type), len(len) {}
 };
 struct pl0_ast_primitive_type {
@@ -150,18 +163,18 @@ struct pl0_ast_stmt {
         STMT, ASSIGN_STMT, COND_STMT, CASE_STMT, CALL_PROC, COMPOUND_STMT, WRITE_STMT, READ_STMT, FOR_STMT, NULL_STMT, INHERIT
     };
     type_t t;
-    struct pl0_ast_stmt *stmt;
-    pl0_ast_stmt(): t(type_t::INHERIT), stmt(nullptr) {}
-    pl0_ast_stmt(type_t const t, pl0_ast_stmt *stmt): t(t), stmt(stmt) {}
+    // pl0_ast_stmt(): t(type_t::INHERIT), stmt(nullptr) {}
+    pl0_ast_stmt(type_t const t): t(t) {}
+    virtual ~pl0_ast_stmt() {}; // make pl0_ast_stmt polymorphic.
 };
 struct pl0_ast_null_stmt: pl0_ast_stmt {
-    pl0_ast_null_stmt(): pl0_ast_stmt(type_t::NULL_STMT, nullptr) {}
+    pl0_ast_null_stmt(): pl0_ast_stmt(type_t::NULL_STMT) {}
 }; // empty statement, not in grammar.
 struct pl0_ast_assign_stmt: pl0_ast_stmt {
     struct pl0_ast_identify *id;
     struct pl0_ast_expression *val;
     struct pl0_ast_expression *idx;
-    pl0_ast_assign_stmt(pl0_ast_identify *id, pl0_ast_expression *val, pl0_ast_expression *idx): id(id), val(val), idx(idx) {}
+    pl0_ast_assign_stmt(pl0_ast_identify *id, pl0_ast_expression *val, pl0_ast_expression *idx): pl0_ast_stmt(pl0_ast_stmt::type_t::ASSIGN_STMT), id(id), val(val), idx(idx) {}
 };
 struct pl0_ast_function_id {
     struct pl0_ast_identify *id;
@@ -241,12 +254,12 @@ struct pl0_ast_comp_op {
 struct pl0_ast_cond_stmt: pl0_ast_stmt {
     struct pl0_ast_condtion *cond;
     struct pl0_ast_stmt *then_block, *else_block;
-    pl0_ast_cond_stmt(pl0_ast_condtion *cond, pl0_ast_stmt *then_block, pl0_ast_stmt *else_block): cond(cond), then_block(then_block), else_block(else_block) {}
+    pl0_ast_cond_stmt(pl0_ast_condtion *cond, pl0_ast_stmt *then_block, pl0_ast_stmt *else_block): pl0_ast_stmt(pl0_ast_stmt::type_t::COND_STMT), cond(cond), then_block(then_block), else_block(else_block) {}
 };
 struct pl0_ast_case_stmt: pl0_ast_stmt {
     struct pl0_ast_expression *expr;
     std::vector<pl0_ast_case_term *> terms;
-    pl0_ast_case_stmt(pl0_ast_expression *expr, std::vector<pl0_ast_case_term *> const & terms): expr(expr), terms(terms) {}
+    pl0_ast_case_stmt(pl0_ast_expression *expr, std::vector<pl0_ast_case_term *> const & terms): pl0_ast_stmt(pl0_ast_stmt::type_t::CASE_STMT), expr(expr), terms(terms) {}
 };
 struct pl0_ast_case_term {
     struct pl0_ast_constv *constv;
@@ -258,20 +271,20 @@ struct pl0_ast_for_stmt: pl0_ast_stmt {
     struct pl0_ast_expression *initial, *end;
     struct pl0_ast_stmt *stmt;
     struct pl0_ast_constv *step;
-    pl0_ast_for_stmt(pl0_ast_identify *iter, pl0_ast_expression *initial, pl0_ast_expression *end, pl0_ast_stmt *stmt, pl0_ast_constv *step): iter(iter), initial(initial), end(end), stmt(stmt), step(step) {}
+    pl0_ast_for_stmt(pl0_ast_identify *iter, pl0_ast_expression *initial, pl0_ast_expression *end, pl0_ast_stmt *stmt, pl0_ast_constv *step): pl0_ast_stmt(pl0_ast_stmt::type_t::FOR_STMT), iter(iter), initial(initial), end(end), stmt(stmt), step(step) {}
 };
 struct pl0_ast_call_proc: pl0_ast_stmt {
     struct pl0_ast_identify *id;
     struct pl0_ast_arg_list *args;
-    pl0_ast_call_proc(pl0_ast_identify *id, pl0_ast_arg_list *args): id(id), args(args) {}
+    pl0_ast_call_proc(pl0_ast_identify *id, pl0_ast_arg_list *args): pl0_ast_stmt(pl0_ast_stmt::type_t::CALL_PROC), id(id), args(args) {}
 };
 struct pl0_ast_compound_stmt: pl0_ast_stmt, pl0_ast_prog {
     std::vector<struct pl0_ast_stmt *> stmt;
-    pl0_ast_compound_stmt(std::vector<struct pl0_ast_stmt *> const & stmt): stmt(stmt) {}
+    pl0_ast_compound_stmt(std::vector<struct pl0_ast_stmt *> const & stmt): pl0_ast_stmt(pl0_ast_stmt::type_t::COMPOUND_STMT), stmt(stmt) {}
 };
 struct pl0_ast_read_stmt: pl0_ast_stmt {
     std::vector<struct pl0_ast_identify *> ids;
-    pl0_ast_read_stmt(std::vector<struct pl0_ast_identify *> const & ids): ids(ids) {}
+    pl0_ast_read_stmt(std::vector<struct pl0_ast_identify *> const & ids): pl0_ast_stmt(pl0_ast_stmt::type_t::READ_STMT), ids(ids) {}
 };
 struct pl0_ast_write_stmt: pl0_ast_stmt {
     enum type_t {
@@ -282,9 +295,9 @@ struct pl0_ast_write_stmt: pl0_ast_stmt {
     type_t t;
     struct pl0_ast_charseq *str;
     struct pl0_ast_expression *expr;
-    pl0_ast_write_stmt(pl0_ast_charseq *str): t(type_t::ONLY_STRING), str(str) {}
-    pl0_ast_write_stmt(pl0_ast_expression *expr): t(type_t::ONLY_EXPR), expr(expr) {}
-    pl0_ast_write_stmt(pl0_ast_charseq *str, pl0_ast_expression *expr): t(type_t::STRING_AND_EXPR), str(str), expr(expr) {}
+    pl0_ast_write_stmt(pl0_ast_charseq *str): pl0_ast_stmt(pl0_ast_stmt::type_t::WRITE_STMT), t(type_t::ONLY_STRING), str(str) {}
+    pl0_ast_write_stmt(pl0_ast_expression *expr): pl0_ast_stmt(pl0_ast_stmt::type_t::WRITE_STMT), t(type_t::ONLY_EXPR), expr(expr) {}
+    pl0_ast_write_stmt(pl0_ast_charseq *str, pl0_ast_expression *expr): pl0_ast_stmt(pl0_ast_stmt::type_t::WRITE_STMT), t(type_t::STRING_AND_EXPR), str(str), expr(expr) {}
 };
 struct pl0_ast_alnum {
     char val;
