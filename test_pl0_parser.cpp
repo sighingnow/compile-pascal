@@ -289,7 +289,7 @@ TEST(PL0Parser, AssignStmt) {
     auto parse_tool = ParsecT<decltype(pl0_assign_stmt)>(pl0_assign_stmt);
 
     EXPECT_TRUE(parse_tool(new input_t("a := 100")).status);
-    EXPECT_TRUE(parse_tool(new input_t("a := b+c-c*d-e/f+a")).status);
+    EXPECT_TRUE(parse_tool(new input_t("a := -b+c-c*d-e/f+a")).status);
     EXPECT_TRUE(parse_tool(new input_t("a[100] := b+c-c*d-e/f+a")).status);
     EXPECT_TRUE(parse_tool(new input_t("a[3] := a['3']+c['e']-c*d-e/f+a")).status);
     EXPECT_FALSE(parse_tool(new input_t("a[3] := a['3']+c['e']-c*d-e/f+a")).strict);

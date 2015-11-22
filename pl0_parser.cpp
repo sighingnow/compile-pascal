@@ -332,10 +332,18 @@ pair<int, pl0_ast_expression *> pl0_expression_fn(input_t *text) {
         auto vec = std::vector<std::pair<struct pl0_ast_addop *, struct pl0_ast_term *>>();
         return make_pair(-1, new pl0_ast_expression(vec));
     }
-    auto res2 = (++(pl0_addop + pl0_term))(text->drop(std::get<0>(res1)));
+    std::pair<struct pl0_ast_addop *, struct pl0_ast_term *> head;
+    int headlen = std::get<0>(res1);
+    if (std::get<1>(res1).first == nullptr) {
+        head = make_pair(new pl0_ast_addop('+'), std::get<1>(res1).second); // default: '+'
+    }
+    else {
+        head = std::get<1>(res1);
+    }
+    auto res2 = (++(pl0_addop + pl0_term))(text->drop(headlen));
     auto vec = std::get<1>(res2);
-    vec.emplace(vec.begin(), std::get<1>(res1));
-    return make_pair(std::get<0>(res1) + std::get<0>(res2), new pl0_ast_expression(vec));
+    vec.emplace(vec.begin(), head);
+    return make_pair(headlen + std::get<0>(res2), new pl0_ast_expression(vec));
 }
 
 // <实在参数> ::= <表达式>
