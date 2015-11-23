@@ -31,7 +31,7 @@ else
 	CXXFLAGS						+= -static -O3 -DNDEBUG
 endif
 
-UTILS								:= pl0_global.o pl0_parser.o pl0_tac_gen.o
+UTILS								:= pl0_parser.o pl0_ast.o pl0_tac_gen.o
 
 ## prevent make deleting the intermedia object file.
 .SECONDARY: $(UTILS)

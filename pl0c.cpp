@@ -9,11 +9,9 @@
 
 using namespace std;
 
-
-
 extern parser_t<pl0_ast_program *> pl0_program;
 extern struct IRBuilder irb;
-void pl0_tac_program(pl0_ast_program const *program);
+bool pl0_tac_program(pl0_ast_program const *program);
 
 input_t *load_case(char const *fname) {
     std::ifstream t(fname);
@@ -29,13 +27,12 @@ int main(int argc, char **argv) {
         cout << "Errors occurred during parsing." << endl;
         return 0;
     }
-    // if (!pl0_check(res.actual)) {
-    //     cout << "Errors occurred during semantic analysing." << endl;
-    // }
-    pl0_tac_program(res.actual);
-#ifdef DEBUG
+    if (!pl0_tac_program(res.actual)) {
+        cout << "Errors occurred during semantic analysing." << endl;
+        // return 0;
+    }
     irb.dump();
-#endif
+
     return 0;
 }
 

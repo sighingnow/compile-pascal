@@ -61,6 +61,11 @@ extern parser_t<pl0_ast_alnum *> pl0_digit;
 
 using namespace std;
 
+void pl0_parser_error(pair<int, int> loc, string msg) {
+    // status = false;
+    cout << loc.first << ":" << loc.second << " " << "ERRRO: " << msg << endl;
+}
+
 static function<string (vector<char>)> vec2str = [](const vector<char> & vec) {
     string ans; for (char c: vec) { ans.push_back(c); } return ans;
 };

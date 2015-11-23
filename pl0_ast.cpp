@@ -3,9 +3,9 @@
  */
 
 #include <iostream>
-#include "pl0_ast.hpp"
 #include "input_t.hpp"
 #include "parse_tool.hpp"
+#include "pl0_ast.hpp"
 using namespace std;
 
 pair<int, pl0_ast_program *> pl0_program_fn(input_t *);
@@ -108,7 +108,7 @@ parser_t<pl0_ast_alnum *> pl0_alpha("pl0 alpha", pl0_alpha_fn);
 pair<int, pl0_ast_alnum *> pl0_digit_fn(input_t *);
 parser_t<pl0_ast_alnum *> pl0_digit("pl0 digit", pl0_digit_fn);
 
-
+/* IR builder. */
 
 void IRBuilder::emit(string const ir) {
     this->irs.emplace_back(ir);
@@ -133,5 +133,32 @@ void IRBuilder::dump() {
 }
 
 struct IRBuilder irb;
+
+/* Global env. (symbol table) */
+
+
+variable::variable(std::string name, std::string type = "integer"): name(name), type(type), len(-1) {}
+variable::variable(std::string name, std::string type, int len): name(name), type(type), len(len) {}
+bool operator == (variable const & a, variable const & b) {
+    return a.name == b.name && a.type == b.type;
+}
+
+value::value(std::string name, int v): name(name), val(v) {}
+bool operator == (value const & a, value const & b) {
+    return a.name == b.name;
+}
+
+proc::proc(std::string name, std::string param_t): name(name), param_t(param_t) {}
+bool operator == (proc const & a, proc const & b) {
+    return a.name == b.name && a.param_t == b.param_t;
+}
+
+func::func(std::string name, std::string rettype, std::string param_t): name(name), rettype(rettype), param_t(param_t) {}
+bool operator == (func const & a, func const & b) {
+    return a.name == b.name && a.rettype == b.rettype && a.param_t == b.param_t;
+}
+
+/* pl0_env */
+
 
 

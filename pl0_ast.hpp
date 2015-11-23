@@ -50,20 +50,6 @@ struct pl0_ast_read_stmt;
 struct pl0_ast_write_stmt;
 struct pl0_ast_alnum;
 
-struct IRBuilder {
-private:
-    int label = 0, temp = 0, ret = 0;
-    std::vector<std::string> irs;
-public:
-    IRBuilder() {}
-    void emit(string const);
-    int emitlabel(int label);
-    int makelabel();
-    string maketmp();
-    string makeret();
-    void dump();
-};
-
 struct pl0_ast_program {
     pair<int, int> loc;
     struct pl0_ast_prog *program;
@@ -337,5 +323,130 @@ struct pl0_ast_alnum {
     pl0_ast_alnum(pair<int, int> loc, char val): loc(loc), val(val) {}
 };
 
+/* IR builder. */
+struct IRBuilder {
+private:
+    int label = 0, temp = 0, ret = 0;
+    std::vector<std::string> irs;
+public:
+    IRBuilder() {}
+    void emit(string const);
+    int emitlabel(int label);
+    int makelabel();
+    string maketmp();
+    string makeret();
+    void dump();
+};
+
+/* Symbol table */
+
+// variable.
+struct variable {
+    std::string name;
+    std::string type;
+    int len;
+    variable(): name(""), type(""), len(-1) {}
+    variable(std::string, std::string);
+    variable(std::string, std::string, int);
+};
+
+// constant.
+struct value {
+    std::string name;
+    int val;
+    value(std::string, int);
+};
+
+// procedure.
+struct proc {
+    std::string name;
+    std::string param_t;
+    proc(std::string, std::string);
+};
+
+// function.
+struct func {
+    std::string name, rettype;
+    std::string param_t;
+    func(): name(""), rettype(""), param_t("") {}
+    func(std::string, std::string, std::string);
+};
+
+template<typename T>
+class pl0_env {
+private:
+    std::vector<T> tb;
+    std::vector<int> size;
+public:
+    pl0_env() { size.emplace_back(0); }
+    bool empty();
+    bool find(std::string const &, bool, T &);
+    bool find(std::string const &, bool);
+    void push(T const &);
+    void tag();
+    void detag();
+    int depth(std::string const &);
+};
+
+template<typename T>
+bool pl0_env<T>::empty() { return this->tb.empty(); }
+
+template<typename T>
+bool pl0_env<T>::find(std::string const & name, bool cross, T & res) {
+    if (this->empty()) { return false; }
+    for (int i = this->tb.size()-1; i >= 0; --i) {
+        if (!cross && i < this->size.back()) {
+            break;
+        }
+        if (this->tb[i].name == name) {
+            res = this->tb[i];
+            return true;
+        }
+    }
+    return false;
+}
+
+template<typename T>
+bool pl0_env<T>::find(std::string const & name, bool cross) {
+    if (this->empty()) { return false; }
+    for (int i = this->tb.size()-1; i >= 0; --i) {
+        if (!cross && i < this->size.back()) {
+            break;
+        }
+        if (this->tb[i].name == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template<typename T>
+void pl0_env<T>::push(T const & e) { this->tb.emplace_back(e); }
+
+template<typename T>
+void pl0_env<T>::tag() { this->size.emplace_back(this->tb.size()); }
+
+template<typename T>
+void pl0_env<T>::detag() {
+    while (tb.size() > (size_t)size.back()) { tb.pop_back(); }
+    size.pop_back();
+}
+
+template<typename T>
+int pl0_env<T>::depth(std::string const & name) {
+    if (tb.empty()) { return -1; } // doesn't exist.
+    for (int i = this->tb.size()-1; i >= 0; --i) {
+        if (this->tb[i].name == name) {
+            for (int j = this->size.size(); i >= 0; --i) {
+                if (i >= this->size[j]) {
+                    return j;
+                }
+            }
+        }
+    }
+    return -1;
+}
 
 #endif /* __PL0_AST_HPP__ */
+
+
