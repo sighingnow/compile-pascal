@@ -13,6 +13,8 @@ extern parser_t<pl0_ast_program *> pl0_program;
 extern struct IRBuilder irb;
 bool pl0_tac_program(pl0_ast_program const *program);
 
+bool verbose = true;
+
 input_t *load_case(char const *fname) {
     std::ifstream t(fname);
     std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
@@ -34,7 +36,7 @@ int main(int argc, char **argv) {
         cout << "Errors occurred during semantic analysing." << endl;
         // return 0;
     }
-    irb.dump();
+    // irb.dump();
 
     return 0;
 }
