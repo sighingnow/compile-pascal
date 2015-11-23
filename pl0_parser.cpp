@@ -71,7 +71,7 @@ static function<string (vector<char>)> vec2str = [](const vector<char> & vec) {
 };
 static const auto spaces = (++space)/vec2str;
 
-static bool verbose = true;
+static bool verbose = false;
 
 // porting the `character` and `string_literal` parser generator from libparsec, for reporting parse error.
 pair<int, char> pl0_character_helper(char const & ch, input_t *text) {
@@ -537,7 +537,7 @@ pair<int, pl0_ast_factor *> pl0_factor_fn(input_t *text) {
         ans = make_pair(std::get<0>(res1), new pl0_ast_factor(text->locate(), std::get<1>(res1)));
     }
     else {
-        auto res2 = (pl0_character('(') >> pl0_expression << pl0_character(')'))(text);
+        auto res2 = (pl0_character('(') >> (spaces >> pl0_expression << spaces) << pl0_character(')'))(text);
         if (std::get<0>(res2) != -1) {
             ans = make_pair(std::get<0>(res2), new pl0_ast_factor(text->locate(), pl0_ast_factor::type_t::EXPR, std::get<1>(res2)));
         }
@@ -619,7 +619,7 @@ pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *text) {
 
 // <情况语句> ::= case <表达式> of <情况表元素>{; <情况表元素>} end
 pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *text) {
-    auto parser = (pl0_string_literal("case") >> pl0_expression << pl0_string_literal("of"))
+    auto parser = (pl0_string_literal("case") >> (spaces >> pl0_expression << spaces) << pl0_string_literal("of"))
         + ((pl0_case_term % pl0_character(';')) << (spaces >> pl0_string_literal("end")));
     auto res = (spaces >> parser << spaces)(text);
     if (verbose) {
@@ -631,6 +631,9 @@ pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *text) {
 // <情况表元素> ::= <常量> : <语句>
 pair<int, pl0_ast_case_term *> pl0_case_term_fn(input_t *text) {
     auto res = ((pl0_const << pl0_character(':')) + pl0_stmt)(text);
+    if (std::get<0>(res) == -1) {
+        cout << "REPORT" << endl;
+    }
     if (verbose) {
         cout << "parsing: Cast Item" << endl;
     }

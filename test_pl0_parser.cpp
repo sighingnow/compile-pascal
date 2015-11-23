@@ -306,10 +306,22 @@ TEST(PL0Parser, ForStmt) {
     EXPECT_FALSE(res.strict);
 }
 
+TEST(PL0Parser, CaseStmt) {
+    auto parse_tool = ParsecT<decltype(pl0_case_stmt)>(pl0_case_stmt);
+
+    EXPECT_TRUE(parse_tool(new input_t("case a of 1 : read(x) end")).status);
+    EXPECT_TRUE(parse_tool(new input_t("case a of 1 : read(x); 2: read(t) end")).status);
+    auto res = parse_tool(new input_t("case (a+b) of 1 : read(x); 2: read(t) end"));
+    EXPECT_TRUE(res.status);
+    EXPECT_TRUE(res.strict);
+}
+
 TEST(PL0Parser, Stmt) {
     auto parse_tool = ParsecT<decltype(pl0_stmt)>(pl0_stmt);
 
     EXPECT_TRUE(parse_tool(new input_t("  write(  aaaa)")).status);
+    EXPECT_TRUE(parse_tool(new input_t("case a of 1 : read(x) end")).status);
+    EXPECT_TRUE(parse_tool(new input_t("case (a+b) of 1 : read(x) end")).status);
 }
 
 TEST(PL0Parser, CompoundStmt) {
