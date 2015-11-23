@@ -362,7 +362,8 @@ pair<int, pl0_ast_arg_list *> pl0_arg_list_fn(input_t *text) {
 
 // <函数调用语句> ::= <标识符>[<实在参数表>]
 pair<int, pl0_ast_call_func *> pl0_call_func_fn(input_t *text) {
-    auto res = (pl0_identify + pl0_arg_list)(text);
+    auto parser = pl0_identify + (~pl0_arg_list);
+    auto res = (spaces >> parser << spaces)(text);
     return make_pair(std::get<0>(res), new pl0_ast_call_func(text->locate(), std::get<1>(res)));
 }
 
