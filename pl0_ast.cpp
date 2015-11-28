@@ -110,13 +110,17 @@ parser_t<pl0_ast_alnum *> pl0_digit("pl0 digit", pl0_digit_fn);
 
 /* IR builder. */
 
-void IRBuilder::emit(string const ir) {
-    this->irs.emplace_back(ir);
+std::string Value::str() {
+    switch (t) {
+        case INT: return std::to_string(iv);
+        case STR: return sv;
+    }
 }
-int IRBuilder::emitlabel(int label) {
-    irs.emplace_back( "L" + std::to_string(label) + ":");
-    return label;
+
+std::string TAC::str() {
+    return op + " " + (rd ? rd->str() : "") + " " + (rs ? rs->str() : "") + " " + (rt ? rt->str() : "");
 }
+
 int IRBuilder::makelabel() {
     return this->label++;
 }
@@ -128,7 +132,7 @@ string IRBuilder::makeret() {
 }
 void IRBuilder::dump() {
     for (auto ir: irs) {
-        cout << ir << endl;
+        cout << ir.str() << endl;
     }
 }
 
@@ -143,8 +147,8 @@ bool operator == (variable const & a, variable const & b) {
     return a.name == b.name && a.type == b.type;
 }
 
-value::value(std::string name, int v): name(name), val(v) {}
-bool operator == (value const & a, value const & b) {
+constant::constant(std::string name, int v): name(name), val(v) {}
+bool operator == (constant const & a, constant const & b) {
     return a.name == b.name;
 }
 

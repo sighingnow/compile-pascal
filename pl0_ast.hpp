@@ -324,15 +324,35 @@ struct pl0_ast_alnum {
     pl0_ast_alnum(pair<int, int> loc, char val): loc(loc), val(val) {}
 };
 
+// TAC design
+struct Value {
+    enum TYPE { INT, STR } t; // 1: int, 2: string.
+    int iv;
+    std::string sv;
+    Value(int v): t(TYPE::INT), iv(v) {};
+    Value(std::string v): t(TYPE::STR), sv(v) {};
+    std::string str();
+};
+
+struct TAC {
+    std::string op;
+    Value *rd, *rs, *rt;
+    TAC(std::string op, Value *rd, Value *rs = nullptr, Value *rt = nullptr): op(op), rd(rd), rs(rs), rt(rt) {}
+    std::string str();
+};
+
 /* IR builder. */
 struct IRBuilder {
 private:
     int label = 0, temp = 0, ret = 0;
-    std::vector<string> irs;
+    std::vector<struct TAC> irs;
 public:
     IRBuilder() {}
-    void emit(string const);
-    int emitlabel(int label);
+    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value(label))); }
+    void emit(std::string op, Value *rd, Value *rs = nullptr, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, rs, rt)); }
+    void emit(TAC c) { irs.emplace_back(c); }
+    void emit(std::string op, std::string rd) { irs.emplace_back(TAC(op, new Value(rd))); }
+    void emit(std::string op, std::string rd, std::string rs) { irs.emplace_back(TAC(op, new Value(rd), new Value(rs))); }
     int makelabel();
     string maketmp();
     string makeret();
@@ -352,10 +372,11 @@ struct variable {
 };
 
 // constant.
-struct value {
+struct constant {
     std::string name;
     int val;
-    value(std::string, int);
+    constant(): name(""), val(0) {}
+    constant(std::string, int);
 };
 
 // procedure.
@@ -435,17 +456,17 @@ void pl0_env<T>::detag() {
 
 template<typename T>
 int pl0_env<T>::depth(std::string const & name) {
-    if (tb.empty()) { return 0x7fffffff; } // doesn't exist.
+    if (tb.empty()) { return -1; } // doesn't exist.
     for (int i = this->tb.size()-1; i >= 0; --i) {
         if (this->tb[i].name == name) {
             for (int j = this->tags.size()-1; j >= 0; --j) {
                 if (i >= this->tags[j]) {
-                    return this->tags.size() - j;
+                    return j;
                 }
             }
         }
     }
-    return 0x7fffffff; // NOT FOUND
+    return -1; // NOT FOUND
 }
 
 #endif /* __PL0_AST_HPP__ */
