@@ -9,6 +9,8 @@ begin
 end;
 
 procedure noparam;
+var x: array[100] of integer;
+    y: array [1] of char;
 begin
     read(x, y, z);
     x := y + z;
@@ -41,3 +43,4 @@ begin
         read(a);
     end
 end.
+

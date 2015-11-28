@@ -34,11 +34,14 @@ ERROR When Semantic Analysing (Type Checking):
 2. use of undeclared identifier "a"
 3. use an array identifier "a" as a factor.
 4. expected an array identifier.
-5. expected an valid expression as the array index.
-6. expected an valid expression as the condition expression.
-7. compare two expressions with different types.
-8. do +/- operation on two factors with different types.
-9. do *// operation on two terms with different types.
+5. expected an non-array identifier.
+6. expected an valid expression as the array index.
+7. expected an valid expression as the condition expression.
+8. compare two expressions with different types.
+9. do +/- operation on two factors with different types.
+10. do *// operation on two terms with different types.
+11. duplicate identifier "F" (when there is a variable with the same name of it's container function or procedure)
+12. overloaded identifier "F" isn't a function (when there is a function or procedure with the same name of it's container function or procedure, or define a function or procedure when there already is a variable or constant with the same name.)
 
 
 ABOUT TYPE CAST:

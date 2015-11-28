@@ -161,7 +161,8 @@ struct pl0_ast_param_group {
     pair<int, int> loc;
     std::vector<struct pl0_ast_identify *> ids;
     struct pl0_ast_primitive_type *type;
-    pl0_ast_param_group(pair<int, int> loc, vector<pl0_ast_identify *> const & ids, pl0_ast_primitive_type *type): loc(loc), ids(ids), type(type) {}
+    bool is_ref;
+    pl0_ast_param_group(pair<int, int> loc, vector<pl0_ast_identify *> const & ids, pl0_ast_primitive_type *type, bool is_ref = false): loc(loc), ids(ids), type(type), is_ref(is_ref) {}
 };
 struct pl0_ast_stmt {
     pair<int, int> loc;
@@ -327,7 +328,7 @@ struct pl0_ast_alnum {
 struct IRBuilder {
 private:
     int label = 0, temp = 0, ret = 0;
-    std::vector<std::string> irs;
+    std::vector<string> irs;
 public:
     IRBuilder() {}
     void emit(string const);
@@ -376,12 +377,12 @@ template<typename T>
 class pl0_env {
 private:
     std::vector<T> tb;
-    std::vector<int> size;
+    std::vector<int> tags;
 public:
-    pl0_env() { size.emplace_back(0); }
+    pl0_env() { tags.emplace_back(0); }
     bool empty();
-    bool find(std::string const &, bool, T &);
     bool find(std::string const &, bool);
+    bool find(std::string const &, bool, T &);
     void push(T const &);
     void tag();
     void detag();
@@ -395,7 +396,7 @@ template<typename T>
 bool pl0_env<T>::find(std::string const & name, bool cross, T & res) {
     if (this->empty()) { return false; }
     for (int i = this->tb.size()-1; i >= 0; --i) {
-        if (!cross && i < this->size.back()) {
+        if (!cross && i < this->tags.back()) {
             break;
         }
         if (this->tb[i].name == name) {
@@ -410,7 +411,7 @@ template<typename T>
 bool pl0_env<T>::find(std::string const & name, bool cross) {
     if (this->empty()) { return false; }
     for (int i = this->tb.size()-1; i >= 0; --i) {
-        if (!cross && i < this->size.back()) {
+        if (!cross && i < this->tags.back()) {
             break;
         }
         if (this->tb[i].name == name) {
@@ -424,27 +425,27 @@ template<typename T>
 void pl0_env<T>::push(T const & e) { this->tb.emplace_back(e); }
 
 template<typename T>
-void pl0_env<T>::tag() { this->size.emplace_back(this->tb.size()); }
+void pl0_env<T>::tag() { this->tags.emplace_back(this->tb.size()); }
 
 template<typename T>
 void pl0_env<T>::detag() {
-    while (tb.size() > (size_t)size.back()) { tb.pop_back(); }
-    size.pop_back();
+    while (tb.size() > (size_t)tags.back()) { tb.pop_back(); }
+    tags.pop_back();
 }
 
 template<typename T>
 int pl0_env<T>::depth(std::string const & name) {
-    if (tb.empty()) { return -1; } // doesn't exist.
+    if (tb.empty()) { return 0x7fffffff; } // doesn't exist.
     for (int i = this->tb.size()-1; i >= 0; --i) {
         if (this->tb[i].name == name) {
-            for (int j = this->size.size(); i >= 0; --i) {
-                if (i >= this->size[j]) {
-                    return j;
+            for (int j = this->tags.size()-1; j >= 0; --j) {
+                if (i >= this->tags[j]) {
+                    return this->tags.size() - j;
                 }
             }
         }
     }
-    return -1;
+    return 0x7fffffff; // NOT FOUND
 }
 
 #endif /* __PL0_AST_HPP__ */

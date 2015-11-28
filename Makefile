@@ -24,11 +24,11 @@ INCLUDE								:= -I .
 INCLUDE 							+= -I $(LIBGTEST_DIR)/include
 INCLUDE 							+= -I $(LIBPARSEC_DIR)/
 
-DEBUG 								:= 1
+DEBUG 								:= 0
 ifeq ($(DEBUG), 1)
 	CXXFLAGS 						+= -O0 -ggdb -DDEBUG -DTRACE
 else
-	CXXFLAGS						+= -static -O3 -DNDEBUG
+	CXXFLAGS						+= -O1 -DNDEBUG
 endif
 
 UTILS								:= pl0_parser.o pl0_ast.o pl0_tac_gen.o

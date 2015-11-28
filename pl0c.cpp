@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
         cout << "Errors occurred during semantic analysing." << endl;
         // return 0;
     }
-    // irb.dump();
+    irb.dump();
 
     return 0;
 }

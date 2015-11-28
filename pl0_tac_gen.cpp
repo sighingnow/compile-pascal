@@ -43,10 +43,13 @@ static bool status = true;
 static string ERROR[] = {
 
 };
+
+static std::string old = "", scope = "";
 static pl0_env<struct variable> vartb;
 static pl0_env<struct value> valtb;
 static pl0_env<struct proc> proctb;
 static pl0_env<struct func> functb;
+
 
 void pl0_ast_error(pair<int, int> loc, string msg) {
     status = false;
@@ -89,8 +92,11 @@ void pl0_tac_const_stmt(pl0_ast_const_stmt const *stmts) {
     for (auto && def: stmts->stmt) {
         string id = def->id->id;
         // validate.
-        if (valtb.find(id, false) || vartb.find(id, false) || proctb.find(id, false) || functb.find(id, false)) {
-            pl0_ast_error(stmts->loc, string("redefinition of ") + "\"" + id + "\"");
+        if (id == scope) {
+            pl0_ast_error(def->id->loc, string("duplicate identifier ") + "\"" + id + "\"");
+        }
+        else if (valtb.find(id, false) || vartb.find(id, false)) {
+            pl0_ast_error(def->id->loc, string("redefinition of ") + "\"" + id + "\"");
         }
         else {
             valtb.push(value(id, def->val->val)); // update symbol table.
@@ -106,12 +112,15 @@ void pl0_tac_var_stmt(pl0_ast_var_stmt const *stmts) {
     for (auto && s: stmts->stmt) {
         for (auto && var: s->ids) {
             // validate.
-            if (valtb.find(var->id, false) || vartb.find(var->id, false) || proctb.find(var->id, false) || functb.find(var->id, false)) {
-                pl0_ast_error(stmts->loc, string("redefinition of ") + "\"" + var->id + "\"");
+            if (var->id == scope) {
+                pl0_ast_error(var->loc, string("duplicate identifier ") + "\"" + var->id + "\"");
+            }
+            else if (valtb.find(var->id, false) || vartb.find(var->id, false)) {
+                pl0_ast_error(var->loc, string("redefinition of ") + "\"" + var->id + "\"");
             }
             else {
                 string t = s->type->type->type + (s->type->len == -1 ? "" : "array " + std::to_string(s->type->len));
-                vartb.push(variable(var->id, t)); // update symbol table.
+                vartb.push(variable(var->id, t, s->type->len)); // update symbol table.
                 irb.emit("var " + var->id + ": " + t);
             }
         }
@@ -123,16 +132,19 @@ void pl0_tac_procedure_stmt(pl0_ast_procedure_stmt const *stmts) {
     for (auto && p: stmts->procs) {
         // validate.
         string pid = p.first->id->id;
-        if (valtb.find(pid, false) || vartb.find(pid, false) || proctb.find(pid, false) || functb.find(pid, false)) {
-            pl0_ast_error(p.first->loc, string("redefinition of ") + "\"" + pid + "\"");
+        if (valtb.find(pid, false) || vartb.find(pid, false) || proctb.find(pid, false) || functb.find(pid, false)
+                || pid == scope) {
+            pl0_ast_error(p.first->id->loc, string("overloaded identifier ") + "\"" + pid + "\"" + " isn't a function");
         }
         else {
             string proctype = pl0_tac_procedure_header(p.first);
             proctb.push(proc(pid, proctype)); // update symbol table.
             proctb.tag(); functb.tag();
+            old = scope; scope = pid; // update global scope.
             pl0_tac_prog(p.second);
             irb.emit("endproc " + pid);
             // end of current scope.
+            scope = old; // restore scope.
             valtb.detag(); vartb.detag();
             proctb.detag(), functb.detag();
         }
@@ -144,16 +156,19 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
     for (auto && f: stmts->funcs) {
         // validate.
         string fid = f.first->id->id;
-        if (valtb.find(fid, false) || vartb.find(fid, false) || proctb.find(fid, false) || functb.find(fid, false)) {
-            pl0_ast_error(f.first->loc, string("redefinition of ") + "\"" + fid + "\"");
+        if (valtb.find(fid, false) || vartb.find(fid, false) || proctb.find(fid, false) || functb.find(fid, false)
+                || fid == scope) {
+            pl0_ast_error(f.first->id->loc, string("overloaded identifier ") + "\"" + fid + "\"" + " isn't a function");
         }
         else {
             string functype = pl0_tac_function_header(f.first);
             functb.push(func(fid, f.first->type->type, functype));
             proctb.tag(); functb.tag();
+            old = scope; scope = fid; // update global scope.
             pl0_tac_prog(f.second);
             irb.emit("endfunc " + fid);
             // end of current scope.
+            scope = old; // restore scope.
             valtb.detag(); vartb.detag();
             proctb.detag(), functb.detag();
         }
@@ -183,7 +198,12 @@ string pl0_tac_param(pl0_ast_param_list const *param) {
         for (auto && id: group->ids) {
             vartb.push(variable(id->id, group->type->type)); // add parameters to symbol table.
             type = type + "_" + group->type->type;
-            irb.emit("param " + group->type->type + " " + id->id);
+            if (group->is_ref) {
+                irb.emit("paramref " + group->type->type + " " + id->id);
+            }
+            else {
+                irb.emit("param " + group->type->type + " " + id->id);
+            }
         }
     }
     return type;
@@ -214,13 +234,34 @@ void pl0_tac_stmt(pl0_ast_stmt const *stmt) {
 }
 
 void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
+    variable var;
     string val = pl0_tac_expr(stmt->val).first;
-    if (stmt->idx) {
-        string idx = pl0_tac_expr(stmt->idx).first;
-        irb.emit(stmt->id->id + " [] " + idx + " = " + val);
+
+    cout << "^^^^^ find: " << stmt->id->id << "   " << functb.depth(stmt->id->id) << "   " << vartb.depth(stmt->id->id) << endl;
+    if (stmt->idx == nullptr && functb.depth(stmt->id->id) < vartb.depth(stmt->id->id)) {
+        // set function's retval
+        if (functb.find(stmt->id->id, true) == false) {
+            pl0_ast_error(stmt->id->loc, string("use of undeclared function ") + "\"" + stmt->id->id + "\"");
+        }
+        irb.emit("setret " + val);
     }
     else {
-        irb.emit(stmt->id->id + " = " + val);
+        // just simple assign.
+        if (vartb.find(stmt->id->id, true, var) == false) {
+            pl0_ast_error(stmt->id->loc, string("use of undeclared identifier ") + "\"" + stmt->id->id + "\"");
+        }
+        if (var.len != -1) {
+            pl0_ast_error(stmt->id->loc, string("expected an non-array identifier ") + "\"" + stmt->id->id + "\"");
+        }
+        // assign to variable.
+        if (stmt->idx) {
+            string idx = pl0_tac_expr(stmt->idx).first;
+            irb.emit(stmt->id->id + " [] " + idx + " = " + val);
+        }
+        // assign to array element.
+        else {
+            irb.emit(stmt->id->id + " = " + val);
+        }
     }
 }
 
@@ -241,14 +282,16 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
 }
 
 void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
-    cout << "TODO" << __func__;
-    // string val = pl0_tac_expr(stmt->expr);
-    // int tblabel = irb.makelabel();
-    // int endlabel = irb.makelabel();
-    // irb.emit("switch " + val + " case " + std::to_string(endlabel));
-    // std::vector<int> lbs;
-    // for (auto item: cases)
-    // irb.emit("end")
+    cout << __func__;
+    string val = pl0_tac_expr(stmt->expr).first;
+    int endlabel = irb.makelabel();
+    irb.emit("switch " + val + " case " + std::to_string(endlabel));
+    for (auto item: stmt->terms) {
+        irb.emit("case " + std::to_string(item->constv->val));
+        irb.emitlabel(irb.makelabel());
+        pl0_tac_stmt(item->stmt);
+    }
+    irb.emit("endcase");
 }
 
 void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
@@ -282,15 +325,36 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
 void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt) {
     cout << __func__;
     for (auto && id: stmt->ids) {
+        // validate.
+        variable var;
+        if (vartb.find(id->id, true, var) == false) {
+            pl0_ast_error(id->loc, string("use of undeclared identifier ") + "\"" + id->id + "\"");
+        }
+        if (var.len != -1) {
+            pl0_ast_error(id->loc, string("expected an non-array identifier ") + "\"" + id->id + "\"");
+        }
         irb.emit("read " + id->id);
     }
 }
 
 void pl0_tac_write_stmt(pl0_ast_write_stmt const *stmt) {
-    cout << "TODO" << __func__;
+    cout << __func__;
+    switch (stmt->t) {
+        case pl0_ast_write_stmt::type_t::ONLY_STRING:
+            irb.emit("writes " + stmt->str->val);
+            break;
+        case pl0_ast_write_stmt::type_t::ONLY_EXPR:
+            irb.emit("writee " + pl0_tac_expr(stmt->expr).first);
+            break;
+        case pl0_ast_write_stmt::type_t::STRING_AND_EXPR:
+            irb.emit("writes " + stmt->str->val);
+            irb.emit("writee " + pl0_tac_expr(stmt->expr).first);
+            break;
+        default: cout << "UNIMPLEMENT WRITE TYPE" << endl;
+    }
 }
 
-void pl0_tac_null_stmt(pl0_ast_null_stmt const *stmt) {
+void pl0_tac_null_stmt(pl0_ast_null_stmt const *) {
     cout << __func__;
     irb.emit("null stmt");
 }
@@ -399,7 +463,7 @@ pair<string, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
     // a single identifier can be a function id or just simple variable. STRATEGY: choose the nested one.
     string fid = stmt->fn->id;
     if (!stmt->args || stmt->args->args.empty()) {
-        if (vartb.find(fid, true) && (!functb.find(fid, true) || vartb.depth(fid) > functb.depth(fid))) {
+        if (vartb.find(fid, true) && (!functb.find(fid, true) || vartb.depth(fid) < functb.depth(fid))) {
             variable var;
             vartb.find(fid, true, var);
             if (var.len != -1) {
@@ -422,7 +486,7 @@ pair<string, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
         irb.emit("push " + arg);
     }
     string retval = irb.makeret();
-    irb.emit(retval);
+    irb.emit("allocret " + retval);
     irb.emit("callfunc " + fid);
     for (auto arg: args) {
         irb.emit("pop " + arg);

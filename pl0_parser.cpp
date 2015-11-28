@@ -298,12 +298,22 @@ pair<int, pl0_ast_const_stmt *> pl0_const_stmt_fn(input_t *text) {
 
 // <形式参数段> ::= [var]<标识符>{, <标识符>}: <基本类型>
 pair<int, pl0_ast_param_group *> pl0_param_group_fn(input_t *text) {
-    auto parser = ((spaces >> (~pl0_string_literal("var")) << spaces) >> (pl0_identify % pl0_character(','))) + (pl0_character(':') >> pl0_primitive_type);
-    auto res = (spaces >> parser << spaces)(text);
+    // var declaration in parameter group indicates call-by-ref, else call-by-value.
+    int vardecl = std::get<0>((spaces >> pl0_string_literal("var") << spaces)(text));
+    auto parser = (pl0_identify % pl0_character(',')) + (pl0_character(':') >> pl0_primitive_type);
+    auto res = (spaces >> parser << spaces)(text->drop(vardecl == -1 ? 0: vardecl));
     if (verbose) {
         cout << "parsing: Parameter Group" << endl;
     }
-    return make_pair(std::get<0>(res), new pl0_ast_param_group(text->locate(), std::get<1>(res).first, std::get<1>(res).second));
+    return make_pair(
+        (vardecl == -1 ? 0 : vardecl) + std::get<0>(res),
+        new pl0_ast_param_group(
+            text->locate(),
+            std::get<1>(res).first,
+            std::get<1>(res).second,
+            vardecl != -1
+        )
+    );
 }
 
 // <形式参数表> ::= '(' <形式参数段>{; <形式参数段>}')'
@@ -407,55 +417,21 @@ pair<int, pl0_ast_assign_stmt *> pl0_assign_stmt_fn(input_t *text) {
 // <语句> ::= <赋值语句>|<条件语句>|<情况语句>|<过程调用语句>|<复合语句>|<读语句>|<写语句>|<for循环语句>|<空>
 pair<int, pl0_ast_stmt *> pl0_stmt_fn(input_t *text) {
     pair<int, pl0_ast_stmt *> ans;
-    auto res1 = pl0_write_stmt(text);
-    if (std::get<0>(res1) != -1) {
-        ans = make_pair(std::get<0>(res1), std::get<1>(res1));
+    std::tuple<int, pl0_ast_stmt *, string> res;
+    // short-circuit evaluation
+    if (std::get<0>(res = pl0_write_stmt(text)) != -1
+            || std::get<0>(res = pl0_read_stmt(text)) != -1
+            || std::get<0>(res = pl0_assign_stmt(text)) != -1
+            || std::get<0>(res = pl0_cond_stmt(text)) != -1
+            || std::get<0>(res = pl0_case_stmt(text)) != -1
+            || std::get<0>(res = pl0_compound_stmt(text)) != -1
+            || std::get<0>(res = pl0_for_stmt(text)) != -1
+            || std::get<0>(res = pl0_call_proc(text)) != -1) {
+        ans = make_pair(std::get<0>(res), std::get<1>(res));
     }
     else {
-        auto res2 = pl0_read_stmt(text);
-        if (std::get<0>(res2) != -1) {
-            ans = make_pair(std::get<0>(res2), std::get<1>(res2));
-        }
-        else {
-            auto res3 = pl0_assign_stmt(text);
-            if (std::get<0>(res3) != -1) {
-                ans = make_pair(std::get<0>(res3), std::get<1>(res3));
-            }
-            else {
-                auto res4 = pl0_cond_stmt(text);
-                if (std::get<0>(res4) != -1) {
-                    ans = make_pair(std::get<0>(res4), std::get<1>(res4));
-                }
-                else {
-                    auto res5 = pl0_case_stmt(text);
-                    if (std::get<0>(res5) != -1) {
-                        ans = make_pair(std::get<0>(res5), std::get<1>(res5));
-                    }
-                    else {
-                        auto res6 = pl0_compound_stmt(text);
-                        if (std::get<0>(res6) != -1) {
-                            ans = make_pair(std::get<0>(res6), std::get<1>(res6));
-                        }
-                        else {
-                            auto res7 = pl0_for_stmt(text);
-                            if (std::get<0>(res7) != -1) {
-                                ans = make_pair(std::get<0>(res7), std::get<1>(res7));
-                            }
-                            else {
-                                auto res8 = pl0_call_proc(text);
-                                if (std::get<0>(res8) != -1) {
-                                    ans = make_pair(std::get<0>(res8), std::get<1>(res8));
-                                }
-                                else {
-                                    // default: empty statement.
-                                    ans = make_pair(0, new pl0_ast_null_stmt(text->locate()));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // default: empty statement.
+        ans = make_pair(0, new pl0_ast_null_stmt(text->locate()));
     }
     if (verbose) {
         cout << "parsing: Statement" << endl;
@@ -594,27 +570,19 @@ pair<int, pl0_ast_condtion *> pl0_condition_fn(input_t *text) {
 }
 
 // <条件语句> ::= if<条件>then<语句> | if<条件>then<语句>else<语句>
-// **** 增加限制：else 后面的 <语句> 不能为 <空> ****
 pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *text) {
     auto parser = (pl0_string_literal("if") >> pl0_condition) + (pl0_string_literal("then") >> pl0_stmt)
         + ~(pl0_string_literal("else") >> pl0_stmt);
     auto res = (spaces >> parser << spaces)(text);
-    pair<int, pl0_ast_cond_stmt *> ans;
-    if (std::get<1>(res).second && std::get<1>(res).second->t == pl0_ast_stmt::type_t::NULL_STMT) {
-        ans = make_pair(-1, new pl0_ast_cond_stmt(text->locate(), nullptr, nullptr, nullptr));
-    }
-    else { 
-        ans = make_pair(std::get<0>(res), new pl0_ast_cond_stmt(
-            text->locate(),
-            std::get<1>(res).first.first,
-            std::get<1>(res).first.second,
-            std::get<1>(res).second
-        ));
-    }
     if (verbose) {
         cout << "parsing: Condition Statement" << endl;
     }
-    return ans;
+    return make_pair(std::get<0>(res), new pl0_ast_cond_stmt(
+        text->locate(),
+        std::get<1>(res).first.first,
+        std::get<1>(res).first.second,
+        std::get<1>(res).second
+    ));
 }
 
 // <情况语句> ::= case <表达式> of <情况表元素>{; <情况表元素>} end
@@ -641,30 +609,22 @@ pair<int, pl0_ast_case_term *> pl0_case_term_fn(input_t *text) {
 }
 
 // <for循环语句> ::= for <标识符> := <表达式> (downto | to) <表达式> do <语句> // 步长为1
-// **** 增加限制：do 后面的 <语句> 不能为 <空> ****
 pair<int, pl0_ast_for_stmt *> pl0_for_stmt_fn(input_t *text) {
     auto parser = ((pl0_string_literal("for") >> pl0_identify) + (pl0_string_literal(":=") >> pl0_expression))
         + (spaces >> (pl0_string_literal("downto") | pl0_string_literal("to")) << spaces)
         + (pl0_expression + (pl0_string_literal("do") >> pl0_stmt));
     auto res = (spaces >> parser << spaces)(text);
-    pair<int, pl0_ast_for_stmt *> ans;
-    if (std::get<1>(res).second.second && std::get<1>(res).second.second->t == pl0_ast_stmt::type_t::NULL_STMT) {
-        ans = make_pair(-1, new pl0_ast_for_stmt(text->locate(), nullptr, nullptr, nullptr, nullptr, nullptr));
-    }
-    else {
-        ans = make_pair(std::get<0>(res), new pl0_ast_for_stmt(
-            text->locate(),
-            std::get<1>(res).first.first.first,
-            std::get<1>(res).first.first.second,
-            std::get<1>(res).second.first,
-            std::get<1>(res).second.second,
-            std::get<1>(res).first.second == "downto" ? new pl0_ast_constv(text->locate(), -1) : new pl0_ast_constv(text->locate(), 1)
-        ));
-    }
     if (verbose) {
         cout << "parsing: For Loop Statement" << endl;
     }
-    return ans;
+    return make_pair(std::get<0>(res), new pl0_ast_for_stmt(
+        text->locate(),
+        std::get<1>(res).first.first.first,
+        std::get<1>(res).first.first.second,
+        std::get<1>(res).second.first,
+        std::get<1>(res).second.second,
+        std::get<1>(res).first.second == "downto" ? new pl0_ast_constv(text->locate(), -1) : new pl0_ast_constv(text->locate(), 1)
+    ));
 }
 
 // <过程调用语句> ::= <标识符>[<实在参数表>]

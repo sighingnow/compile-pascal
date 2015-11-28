@@ -124,7 +124,7 @@ string IRBuilder::maketmp() {
     return "~t" + std::to_string(temp++);
 }
 string IRBuilder::makeret() {
-    return "ret" + std::to_string(ret++);
+    return "~ret" + std::to_string(ret++);
 }
 void IRBuilder::dump() {
     for (auto ir: irs) {

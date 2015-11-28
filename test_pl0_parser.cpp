@@ -277,7 +277,7 @@ TEST(PL0Parser, ConditionStmt) {
 
     EXPECT_TRUE(parse_tool(new input_t("if 1 <> 2 then write(\"abcd\")")).status);
     EXPECT_TRUE(parse_tool(new input_t("if 1 <> 2 then write(\"abcd\") else write(\"1234\")")).status);
-    EXPECT_FALSE(parse_tool(new input_t("if 1 <> 2 then write(\"abcd\") else ")).status);
+    EXPECT_TRUE(parse_tool(new input_t("if 1 <> 2 then write(\"abcd\") else ")).status);
     // test dangling else.
     auto res = parse_tool(new input_t("if 1 <> 2 then if 3=3 then write(\"abcd\") else write(\"1234\")"));
     EXPECT_TRUE(res.status);
