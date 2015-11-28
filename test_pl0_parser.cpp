@@ -272,6 +272,14 @@ TEST(PL0Parser, WriteStmt) {
     EXPECT_EQ(parse_tool(new input_t("  write(\"fsdfsdf\", aaaaa)")).status, true);
 }
 
+TEST(PL0Parser, PL0Factor) {
+    auto parse_tool = ParsecT<decltype(pl0_factor)>(pl0_factor);
+
+    EXPECT_EQ(parse_tool(new input_t("a+b")).status, true);
+    EXPECT_EQ(parse_tool(new input_t("(a+b)")).status, true);
+    EXPECT_EQ(parse_tool(new input_t("(a+b)")).strict, true);
+}
+
 TEST(PL0Parser, ConditionStmt) {
     auto parse_tool = ParsecT<decltype(pl0_cond_stmt)>(pl0_cond_stmt);
 

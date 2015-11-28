@@ -507,28 +507,28 @@ pair<int, pl0_ast_term *> pl0_term_fn(input_t *text) {
 
 // <因子> ::= <标识符> | <无符号整数> |'('<表达式>')' | <函数调用语句> | <标识符>'['<表达式>']'
 pair<int, pl0_ast_factor *> pl0_factor_fn(input_t *text) {
-    auto res1 = (pl0_identify + (pl0_character('[') >> pl0_expression << pl0_character(']')))(text);
+    auto res1 = (pl0_identify + (pl0_character('[') >> pl0_expression << pl0_character(']') << spaces))(text);
     pair<int, pl0_ast_factor *> ans;
     if (std::get<0>(res1) != -1) {
         ans = make_pair(std::get<0>(res1), new pl0_ast_factor(text->locate(), std::get<1>(res1)));
     }
     else {
-        auto res2 = (pl0_character('(') >> (spaces >> pl0_expression << spaces) << pl0_character(')'))(text);
+        auto res2 = (spaces >> pl0_character('(') >> (spaces >> pl0_expression << spaces) << pl0_character(')') << spaces)(text);
         if (std::get<0>(res2) != -1) {
             ans = make_pair(std::get<0>(res2), new pl0_ast_factor(text->locate(), pl0_ast_factor::type_t::EXPR, std::get<1>(res2)));
         }
         else {
-            auto res3 = pl0_unsigned(text);
+            auto res3 = (spaces >> pl0_unsigned << spaces)(text);
             if (std::get<0>(res3) != -1) {
                 ans = make_pair(std::get<0>(res3), new pl0_ast_factor(text->locate(), pl0_ast_factor::type_t::UNSIGNED, std::get<1>(res3)));
             }
             else {
-                auto res4 = pl0_call_func(text);
+                auto res4 = (spaces >> pl0_call_func << spaces)(text);
                 if (std::get<0>(res4) != -1) {
                     ans = make_pair(std::get<0>(res4), new pl0_ast_factor(text->locate(), pl0_ast_factor::type_t::CALL_FUNC, std::get<1>(res4)));
                 }
                 else {
-                    auto res5 = pl0_identify(text);
+                    auto res5 = (spaces >> pl0_identify << spaces)(text);
                     ans = make_pair(std::get<0>(res5), new pl0_ast_factor(text->locate(), pl0_ast_factor::type_t::ID, std::get<1>(res5)));
                 }
             }
