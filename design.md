@@ -43,6 +43,7 @@ ERROR When Semantic Analysing (Type Checking):
 11. duplicate identifier "F" (when there is a variable with the same name of it's container function or procedure)
 12. overloaded identifier "F" isn't a function (when there is a function or procedure with the same name of it's container function or procedure, or define a function or procedure when there already is a variable or constant with the same name.)
 
+Error: Incompatible types: got "SmallInt" expected "Char"  
 
 ABOUT TYPE CAST:
 ----------------
@@ -52,5 +53,11 @@ ABOUT TYPE CAST:
 3. array of char and array integer can do no type casting.
 4. const value can do no type casting.
 
+ABOUT x86 Code Generate
 
+1. 寄存器分配
+2. 寻址：根据深度，从ebp逐级向上找。
+
+
+一个关于中间代码的问题：先将函数嵌套拆分(flatten)
 

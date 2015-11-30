@@ -152,14 +152,26 @@ bool operator == (constant const & a, constant const & b) {
     return a.name == b.name;
 }
 
-proc::proc(std::string name, std::string param_t): name(name), param_t(param_t) {}
+proc::proc(std::string name, std::vector<std::string> & param_t): name(name), param_t(param_t) {}
 bool operator == (proc const & a, proc const & b) {
-    return a.name == b.name && a.param_t == b.param_t;
+    bool ans = a.name == b.name && a.param_t.size() == b.param_t.size();
+    if (ans && a.param_t.size() > 0) {
+        for (size_t i = 0; i < a.param_t.size(); ++i) {
+            ans = ans && a.param_t[i] == b.param_t[i];
+        }
+    }
+    return ans;
 }
 
-func::func(std::string name, std::string rettype, std::string param_t): name(name), rettype(rettype), param_t(param_t) {}
+func::func(std::string name, std::string rettype, std::vector<std::string> & param_t): name(name), rettype(rettype), param_t(param_t) {}
 bool operator == (func const & a, func const & b) {
-    return a.name == b.name && a.rettype == b.rettype && a.param_t == b.param_t;
+    bool ans = a.name == b.name && a.rettype == b.rettype && a.param_t.size() == b.param_t.size();
+    if (ans && a.param_t.size() > 0) {
+        for (size_t i = 0; i < a.param_t.size(); ++i) {
+            ans = ans && a.param_t[i] == b.param_t[i];
+        }
+    }
+    return ans;
 }
 
 /* pl0_env */

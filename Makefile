@@ -31,7 +31,7 @@ else
 	CXXFLAGS						+= -O1 -DNDEBUG
 endif
 
-UTILS								:= pl0_parser.o pl0_ast.o pl0_tac_gen.o
+UTILS								:= pl0_parser.o pl0_ast.o pl0_tac_gen.o pl0_x86.o pl0_regalloc.o
 
 ## prevent make deleting the intermedia object file.
 .SECONDARY: $(UTILS)
@@ -61,3 +61,8 @@ clean:
 	rm -f *.o
 	rm -f *.out
 .PHONY: clean
+
+run:
+	cls
+	make dist
+	pl0c.out pl0_cases/code3.pas

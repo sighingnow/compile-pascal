@@ -343,7 +343,7 @@ struct TAC {
 
 /* IR builder. */
 struct IRBuilder {
-private:
+public:
     int label = 0, temp = 0, ret = 0;
     std::vector<struct TAC> irs;
 public:
@@ -369,6 +369,9 @@ struct variable {
     variable(): name(""), type(""), len(-1) {}
     variable(std::string, std::string);
     variable(std::string, std::string, int);
+    std::string str() {
+        return string("variable ") + name + " " + type;
+    }
 };
 
 // constant.
@@ -377,21 +380,61 @@ struct constant {
     int val;
     constant(): name(""), val(0) {}
     constant(std::string, int);
+    std::string str() {
+        return string("constant ") + name + " " + std::to_string(val);
+    }
 };
 
 // procedure.
 struct proc {
     std::string name;
-    std::string param_t;
-    proc(std::string, std::string);
+    std::vector<std::string> param_t;
+    proc(std::string, std::vector<std::string> &);
+    std::string str() {
+        std::string res = name + " :: ";
+        for (auto && p: param_t) {
+            res = res + p + " -> ";
+        }
+        return res;
+    }
 };
 
 // function.
 struct func {
     std::string name, rettype;
-    std::string param_t;
-    func(): name(""), rettype(""), param_t("") {}
-    func(std::string, std::string, std::string);
+    std::vector<std::string> param_t;
+    func(): name(""), rettype("") {}
+    func(std::string, std::string, std::vector<std::string> &);
+    std::string str() {
+        std::string res = name + " :: ";
+        for (auto && p: param_t) {
+            res = res + p + " -> ";
+        }
+        return res + rettype;
+    }
+};
+
+// location when generate assembly language code.
+struct LOC {
+    std::string name;
+    int offset; // offset from variable's base address to ebp register.
+    bool is_ref;
+    bool in_mem; // true: in memory, false: in register;
+    LOC(): name(""), offset(0x7fffffff), is_ref(false), in_mem(false) {}
+    LOC(string name, int offset, bool is_ref = false): name(name), offset(offset), is_ref(is_ref), in_mem(false) {}
+    std::string str() {
+        return name + ": " + std::to_string(offset) + " is_ref: " + std::to_string(is_ref) + " in_mem: " + std::to_string(in_mem);
+    }
+};
+
+struct IOOut {
+    string name = "out";
+    void emit(string s) {
+        cout << s << endl;
+    }
+    void emit(string s, TAC c) {
+        cout << s << "\t\t// " << c.str() << endl;
+    }
 };
 
 template<typename T>
@@ -408,6 +451,13 @@ public:
     void tag();
     void detag();
     int depth(std::string const &);
+    void dump() {
+        cout << "-----------------dump symbol table-------------------" << endl;
+        for (auto && t: tb) {
+            cout << t.str() << endl;
+        }
+        cout << "-----------------------------------------------------" << endl;
+    }
 };
 
 template<typename T>
@@ -420,7 +470,7 @@ bool pl0_env<T>::find(std::string const & name, bool cross, T & res) {
         if (!cross && i < this->tags.back()) {
             break;
         }
-        if (this->tb[i].name == name) {
+        if (this->tb[i].name == name || (this->tb[i].name.rfind('_') != this->tb[i].name.npos && this->tb[i].name.substr(this->tb[i].name.rfind('_')+1) == name)) {
             res = this->tb[i];
             return true;
         }
@@ -435,7 +485,7 @@ bool pl0_env<T>::find(std::string const & name, bool cross) {
         if (!cross && i < this->tags.back()) {
             break;
         }
-        if (this->tb[i].name == name) {
+        if (this->tb[i].name == name || (this->tb[i].name.rfind('_') != this->tb[i].name.npos && this->tb[i].name.substr(this->tb[i].name.rfind('_')+1) == name)) {
             return true;
         }
     }
@@ -458,7 +508,7 @@ template<typename T>
 int pl0_env<T>::depth(std::string const & name) {
     if (tb.empty()) { return -1; } // doesn't exist.
     for (int i = this->tb.size()-1; i >= 0; --i) {
-        if (this->tb[i].name == name) {
+        if (this->tb[i].name == name || (this->tb[i].name.rfind('_') != this->tb[i].name.npos && this->tb[i].name.substr(this->tb[i].name.rfind('_')+1) == name)) {
             for (int j = this->tags.size()-1; j >= 0; --j) {
                 if (i >= this->tags[j]) {
                     return j;

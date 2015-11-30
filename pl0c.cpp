@@ -12,6 +12,7 @@ using namespace std;
 extern parser_t<pl0_ast_program *> pl0_program;
 extern struct IRBuilder irb;
 bool pl0_tac_program(pl0_ast_program const *program);
+void pl0_x86_gen(std::string file, std::vector<TAC> & code);
 
 bool verbose = true;
 
@@ -32,11 +33,14 @@ int main(int argc, char **argv) {
     if (!res.strict) {
         cout << "Extra characters in source text." << endl;
     }
+    cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
     if (!pl0_tac_program(res.actual)) {
         cout << "Errors occurred during semantic analysing." << endl;
-        // return 0;
+        return 0;
     }
     irb.dump();
+    cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+    pl0_x86_gen(string(argv[1]), irb.irs);
 
     return 0;
 }

@@ -9,8 +9,8 @@
 #include <string>
 #include "pl0_ast.hpp"
 
-#define __func__ __func__ << endl
-// #define __func__ ""
+// #define __func__ __func__ << endl
+#define __func__ ""
 
 bool pl0_tac_program(pl0_ast_program const *program);
 void pl0_tac_prog(pl0_ast_prog const *prog);
@@ -18,9 +18,9 @@ void pl0_tac_const_stmt(pl0_ast_const_stmt const *stmts);
 void pl0_tac_var_stmt(pl0_ast_var_stmt const *stmts);
 void pl0_tac_procedure_stmt(pl0_ast_procedure_stmt const *stmts);
 void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts);
-string pl0_tac_procedure_header(pl0_ast_procedure_header const *header);
-string pl0_tac_function_header(pl0_ast_function_header const *header);
-string pl0_tac_param(pl0_ast_param_list const *param);
+vector<string> pl0_tac_procedure_header(pl0_ast_procedure_header const *header);
+vector<string> pl0_tac_function_header(pl0_ast_function_header const *header);
+vector<string> pl0_tac_param(pl0_ast_param_list const *param);
 void pl0_tac_compound_stmt(pl0_ast_compound_stmt const *stmt);
 void pl0_tac_stmt(pl0_ast_stmt const *stmt);
 void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt);
@@ -38,13 +38,21 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor);
 pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt);
 
 extern struct IRBuilder irb;
+static bool ready = false;
 
 static bool status = true;
 static string ERROR[] = {
 
 };
 
-static std::string old = "", scope = "";
+static std::vector<std::string> scope;
+static std::string scope_name() {
+    string name = "";
+    for (auto && s: scope) {
+        name = name + "_" + s;
+    }
+    return name;
+}
 static pl0_env<struct variable> vartb;
 static pl0_env<struct constant> valtb;
 static pl0_env<struct proc> proctb;
@@ -59,7 +67,9 @@ void pl0_ast_error(pair<int, int> loc, string msg) {
 bool pl0_tac_program(pl0_ast_program const *program) {
     cout << __func__;
     irb.emit("program", "");
+    irb.emit("procedure", "_main");
     pl0_tac_prog(program->program);
+    irb.emit("endproc", "_main");
     irb.emit("endprogram", "");
     return status;
 }
@@ -92,7 +102,7 @@ void pl0_tac_const_stmt(pl0_ast_const_stmt const *stmts) {
     for (auto && def: stmts->stmt) {
         string id = def->id->id;
         // validate.
-        if (id == scope) {
+        if (!scope.empty() && id == scope.back()) {
             pl0_ast_error(def->id->loc, string("duplicate identifier ") + "\"" + id + "\"");
         }
         else if (valtb.find(id, false) || vartb.find(id, false)) {
@@ -111,16 +121,16 @@ void pl0_tac_var_stmt(pl0_ast_var_stmt const *stmts) {
     for (auto && s: stmts->stmt) {
         for (auto && var: s->ids) {
             // validate.
-            if (var->id == scope) {
+            if (!scope.empty() && var->id == scope.back()) {
                 pl0_ast_error(var->loc, string("duplicate identifier ") + "\"" + var->id + "\"");
             }
             else if (valtb.find(var->id, false) || vartb.find(var->id, false)) {
                 pl0_ast_error(var->loc, string("redefinition of ") + "\"" + var->id + "\"");
             }
             else {
-                string t = s->type->type->type + (s->type->len == -1 ? "" : "array " + std::to_string(s->type->len));
+                string t = s->type->type->type + (s->type->len == -1 ? "" : "array");
                 vartb.push(variable(var->id, t, s->type->len)); // update symbol table.
-                irb.emit("def", t);
+                irb.emit("def", new Value(var->id), new Value(t), new Value(s->type->len));
             }
         }
     }
@@ -132,19 +142,19 @@ void pl0_tac_procedure_stmt(pl0_ast_procedure_stmt const *stmts) {
         // validate.
         string pid = p.first->id->id;
         if (valtb.find(pid, false) || vartb.find(pid, false) || proctb.find(pid, false) || functb.find(pid, false)
-                || pid == scope) {
+                || (!scope.empty() && pid == scope.back())) {
             pl0_ast_error(p.first->id->loc, string("overloaded identifier ") + "\"" + pid + "\"" + " isn't a function");
         }
         else {
-            string proctype = pl0_tac_procedure_header(p.first);
-            irb.emit("procedure", pid);
-            proctb.push(proc(pid, proctype)); // update symbol table.
+            scope.emplace_back(pid); // update global scope.
+            vector<string> proctype = pl0_tac_procedure_header(p.first);
+            irb.emit("procedure", scope_name());
+            proctb.push(proc(scope_name(), proctype)); // update symbol table.
             proctb.tag(); functb.tag();
-            old = scope; scope = pid; // update global scope.
             pl0_tac_prog(p.second);
-            irb.emit("endproc", pid);
+            irb.emit("endproc", scope_name());
             // end of current scope.
-            scope = old; // restore scope.
+            scope.pop_back(); // restore scope.
             valtb.detag(); vartb.detag();
             proctb.detag(), functb.detag();
         }
@@ -157,54 +167,55 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
         // validate.
         string fid = f.first->id->id;
         if (valtb.find(fid, false) || vartb.find(fid, false) || proctb.find(fid, false) || functb.find(fid, false)
-                || fid == scope) {
+                || (!scope.empty() && fid == scope.back())) {
             pl0_ast_error(f.first->id->loc, string("overloaded identifier ") + "\"" + fid + "\"" + " isn't a function");
         }
         else {
-            string functype = pl0_tac_function_header(f.first);
-            irb.emit("function", fid);
-            functb.push(func(fid, f.first->type->type, functype));
+            scope.emplace_back(fid); // update global scope.
+            vector<string> functype = pl0_tac_function_header(f.first);
+            irb.emit("function", scope_name());
+            functb.push(func(scope_name(), f.first->type->type, functype));
             proctb.tag(); functb.tag();
-            old = scope; scope = fid; // update global scope.
             pl0_tac_prog(f.second);
-            irb.emit("endfunc", fid);
+            irb.emit("endfunc", scope_name());
             // end of current scope.
-            scope = old; // restore scope.
+            scope.pop_back(); // restore scope.
             valtb.detag(); vartb.detag();
             proctb.detag(), functb.detag();
         }
     }
 }
 
-string pl0_tac_procedure_header(pl0_ast_procedure_header const *header) {
+vector<string> pl0_tac_procedure_header(pl0_ast_procedure_header const *header) {
     cout << __func__;
     return pl0_tac_param(header->params);
 }
 
-string pl0_tac_function_header(pl0_ast_function_header const *header) {
+vector<string> pl0_tac_function_header(pl0_ast_function_header const *header) {
     cout << __func__;
     return pl0_tac_param(header->params);
 }
 
-string pl0_tac_param(pl0_ast_param_list const *param) {
+vector<string> pl0_tac_param(pl0_ast_param_list const *param) {
     cout << __func__;
     // set up new flag, new scope.
     valtb.tag(); vartb.tag();
     
-    if (!param) { return ""; } // no parameter.
-    string type = "";
+    if (!param) { return vector<string>(); } // no parameter.
+    vector<string> type;
     for (auto && group: param->params) {
         for (auto && id: group->ids) {
             // validte.
-            if (vartb.find(id->id, false) || id->id == scope) {
+            if (vartb.find(id->id, false) || id->id == scope.back()) {
                 pl0_ast_error(id->loc, string("duplicate parameter ") + id->id);
             }
             vartb.push(variable(id->id, group->type->type)); // add parameters to symbol table.
-            type = type + "_" + group->type->type;
             if (group->is_ref) {
+                type.emplace_back(string("ref") + group->type->type);
                 irb.emit("paramref", id->id, group->type->type);
             }
             else {
+                type.emplace_back(group->type->type);
                 irb.emit("param", id->id, group->type->type);
             }
         }
@@ -261,7 +272,7 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
         }
         // assign to array element.
         else {
-            irb.emit("", new Value(stmt->id->id), val);
+            irb.emit("=", new Value(stmt->id->id), val);
         }
     }
 }
@@ -300,7 +311,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
     std::vector<Value *> args;
     if (stmt->args) {
         for (auto argexpr: stmt->args->args) {
-            args.emplace_back(pl0_tac_expr(argexpr->arg).first);
+            args.emplace(args.begin(), pl0_tac_expr(argexpr->arg).first);
         }
     }
     for (auto arg: args) {
@@ -361,26 +372,27 @@ void pl0_tac_null_stmt(pl0_ast_null_stmt const *) {
 
 pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
     cout << __func__;
+    bool needtmp = true;
     std::string t = "";
-    Value *prev = nullptr, *ans;
-    for (auto term: expr->terms) {
+    pair<Value *, string> head = pl0_tac_term(expr->terms[0].second);
+    Value *ans = head.first, *prev = head.first;
+    if (expr->terms[0].first->op == '-') {
         ans = new Value(irb.maketmp());
-        auto element = pl0_tac_term(term.second);
-        if (t == "") {
-            t = element.second; // initial data type.
-        }
-        else if (t != element.second) {
-            pl0_ast_error(term.second->loc, "do +/- operation on two terms with different types.");
-        }
-        if (prev == nullptr) {
-            irb.emit(string(1, term.first->op), ans, element.first);
-        }
-        else {
-            irb.emit(string(1, term.first->op), ans, prev, element.first);
-        }
-        prev = ans;
+        irb.emit("-", ans, new Value(0), prev);
+        needtmp = false; // no more temporary variable.
     }
-    return make_pair(ans, t);
+    if (expr->terms.size() > 1) {
+        for (size_t i = 1; i < expr->terms.size(); ++i) {
+            if (needtmp) { ans = new Value(irb.maketmp()); }
+            auto element = pl0_tac_term(expr->terms[i].second);
+            if (element.second != head.second) {
+                pl0_ast_error(expr->terms[i].second->loc, "do +/- operation on two terms with different types.");
+            }
+            irb.emit(string(1, expr->terms[i].first->op), ans, needtmp ? prev : ans, element.first);
+            needtmp = false; // no more temporary variable.
+        }
+    }
+    return make_pair(ans, head.second);
 }
 
 Value *pl0_tac_condition(pl0_ast_condtion const *cond) {
@@ -397,17 +409,18 @@ Value *pl0_tac_condition(pl0_ast_condtion const *cond) {
 
 pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
     cout << __func__;
+    bool needtmp = true;
     pair<Value *, string> head = pl0_tac_factor(term->factors[0].second);
     Value *ans = head.first, *prev = head.first;
-    if (term->factors.size() > (size_t)1) {
+    if (term->factors.size() > 1) {
         for (size_t i = 1; i < term->factors.size(); ++i) {
-            ans = new Value(irb.maketmp());
+            if (needtmp) { ans = new Value(irb.maketmp()); }
             auto element = pl0_tac_factor(term->factors[i].second);
             if (element.second != head.second) {
                 pl0_ast_error(term->factors[i].second->loc, "do *// operation on two factors with different types.");
             }
-            irb.emit(string(1, term->factors[i].first->op), ans, prev, element.first);
-            prev = ans;
+            irb.emit(string(1, term->factors[i].first->op), ans, needtmp ? prev : ans, element.first);
+            needtmp = false; // no more temporary variable.
         }
     }
     return make_pair(ans, head.second);
@@ -500,7 +513,9 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
     std::vector<Value *> args;
     if (stmt->args) {
         for (auto argexpr: stmt->args->args) {
-            args.emplace_back(pl0_tac_expr(argexpr->arg).first);
+            auto arg = pl0_tac_expr(argexpr->arg);
+
+            args.emplace(args.begin(), arg.first);
         }
     }
     for (auto arg: args) {
