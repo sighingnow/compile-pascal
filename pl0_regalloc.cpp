@@ -17,8 +17,8 @@ string SimpleAllocator::alloc(std::string name) {
     }
     for (auto && r: regs) {
         if (!used[r] || record[r] == name) {
-            this->record[r] = name;
             used[r] = true;
+            this->record[r] = name;
             return r; // found free register, or this variable already mapped to register.
         }
     }
@@ -37,8 +37,10 @@ void SimpleAllocator::remap(std::string reg, std::string dst) {
 void SimpleAllocator::release(std::string name, bool is_reg) {
     if (is_reg) {
         // release register.
-        this->used[name] = false;
-        this->record.erase(name);
+        if (this->used[name]) {
+            this->used[name] = false;
+            this->record.erase(name);
+        }
     }
     else {
         // release variable.
@@ -46,32 +48,45 @@ void SimpleAllocator::release(std::string name, bool is_reg) {
             if (p.second == name) {
                 this->used[p.first] = false;
                 this->record.erase(p.first);
+                break;
             }
         }
     }
 }
 
 string SimpleAllocator::load(std::string name, std::string target) {
-    std::string res;
-    if ((res = exist(name)).length() == 0) {
-        out.emit("    mov " + target + ", dword " + this->addr(name));
-    }
-    else {
-        if (target != res) {
-            out.emit("    mov " + target + ", " + res);
+    std::string now = this->exist(name);
+    if (now != target) {
+        this->spill(target);
+        if (now.length() == 0 && env.find(name, true)) {
+            out.emit("    mov " + target + ", dword " + this->addr(name));
         }
         else {
-            // DO NOTHING.
+            out.emit("    mov " + target + ", " + now);
+            this->store(now);
         }
     }
     return target;
 }
 
+string SimpleAllocator::load(std::string name) {
+    std::string now, target;
+    if ((now = exist(name)).length() != 0) {
+        return now;
+    }
+    else {
+        target = this->alloc(name);
+        if (env.find(name, true)) {
+            out.emit("    mov " + target + ", dword " + this->addr(name));
+        }
+        return target;
+    }
+}
+
 void SimpleAllocator::spill(std::string reg) {
     if (this->used[reg]) {
         this->store(this->record[reg]);
-        this->used[reg] = false;
-        this->record.erase(reg);
+        this->release(reg, true);
     }
     else {
         // DO NOTHING
@@ -80,6 +95,7 @@ void SimpleAllocator::spill(std::string reg) {
 
 void SimpleAllocator::store(std::string name) {
     LOC loc;
+    if (this->exist(name).length() == 0) { return; }
     // alloc space on runtime stack.
     if (this->env.find(name, false, loc) == false) {
         this->dist = this->dist - 4;
@@ -95,6 +111,7 @@ void SimpleAllocator::store(std::string name) {
             else {
                 out.emit(string("    mov dword [ebp") + loc.offset + "], " + p.first);
             }
+            this->release(p.first, true); break;
         }
     }
 }

@@ -1,6 +1,7 @@
+var a: char;
+
 begin
-    read(fsfdsf);
-    write("abcde");
-    write("fsdfds", dfsdfe);
-    write(fsfsdf);
+    read(a);
+    write("aaaaa");
+    write("eeeeeeee", a);
 end.

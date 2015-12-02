@@ -23,6 +23,7 @@ public:
     virtual std::string alloc(std::string) = 0;
     virtual void remap(std::string, std::string) = 0;
     virtual void release(std::string, bool) = 0;
+    virtual std::string load(std::string) = 0;
     virtual std::string load(std::string, std::string) = 0;
     virtual void spill(std::string) = 0;
     virtual void store(std::string) = 0;
@@ -56,6 +57,7 @@ public:
     std::string alloc(std::string);
     void remap(std::string, std::string);
     void release(std::string, bool);
+    std::string load(std::string);
     std::string load(std::string, std::string);
     void spill(std::string);
     void store(std::string);

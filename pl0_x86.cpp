@@ -11,6 +11,7 @@ static int dist = 0, old = 0;
 static vector<TAC> code;
 static pl0_env<LOC> runtime;
 static SimpleAllocator manager(runtime, out, dist);
+static vector<pair<string, string>> asciis;
 
 std::string x86_gen_def() {
     int size = 0;
@@ -61,7 +62,7 @@ void x86_gen_callable() {
             }
             else {
                 if (manager.exist(code[p].rd->sv).length() == 0 && manager.exist(code[p].rs->sv).length() == 0) {
-                    out.emit("    mov " + manager.alloc(code[p].rd->sv) + ", " + manager.locate(code[p].rs->sv), code[p]);
+                    out.emit("    mov " + manager.load(code[p].rd->sv) + ", " + manager.locate(code[p].rs->sv), code[p]);
                 }
                 else {
                     out.emit("    mov " + manager.locate(code[p].rd->sv) + ", " + manager.locate(code[p].rs->sv), code[p]);
@@ -80,7 +81,7 @@ void x86_gen_callable() {
             }
             else {
                 if (manager.exist(code[p].rd->sv).length() == 0) {
-                    manager.load(code[p].rd->sv, manager.alloc(code[p].rd->sv));
+                    manager.load(code[p].rd->sv);
                 }
                 ret = manager.locate(code[p].rd->sv);
             }
@@ -91,6 +92,13 @@ void x86_gen_callable() {
         }
         else if (code[p].op == "loadret") {
             out.emit("    mov eax, dword [ebp-4]", code[p]);
+        }
+        else if (code[p].op == "def") {
+            x86_gen_def();
+        }
+        else if (code[p].op == "undef") {
+            runtime.pop();
+            manager.release(code[p].rd->sv, false);
         }
         else if (code[p].op == "push") {
             manager.spill("eax");
@@ -126,18 +134,21 @@ void x86_gen_callable() {
             out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
         else if (code[p].op == "write_e") {
-            // if (manager.exist(code[p].rd->sv).length() == 0) {
-            //     manager.load(code[p].rd->sv, manager.alloc(code[p].rd->sv));
-            // }
             out.emit(string("    push ") + manager.locate(code[p].rd->sv));
             out.emit(string("    push dword __format_int"));
             out.emit(string("    call    _printf"), code[p]);
             out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
+        else if (code[p].op == "write_s") {
+            asciis.emplace_back(make_pair(code[p].rd->sv, code[p].rs->value()));
+            out.emit(string("    push dword __L") + code[p].rs->value());
+            out.emit(string("    push dword __format_string"));
+            out.emit(string("    call    _printf"), code[p]);
+            out.emit(string("    add esp, 8\t\t;; pop stack at once."));
+        }
         else if (code[p].op == "+") {
             std::string rd = code[p].rd->sv, rs = code[p].rs->value(), rt = code[p].rt->value();
-            std::string dest = manager.alloc(rd);
-            manager.load(rd, dest);
+            std::string dest = manager.load(rd);
             if (code[p].rs->t == Value::TYPE::INT && code[p].rt->t == Value::TYPE::INT) {
                 out.emit(string("    mov ") + dest + ", " + rs);
                 out.emit(string("    add ") + dest + ", " + rt, code[p]);
@@ -168,8 +179,7 @@ void x86_gen_callable() {
         }
         else if (code[p].op == "-") {
             std::string rd = code[p].rd->sv, rs = code[p].rs->value(), rt = code[p].rt->value();
-            std::string dest = manager.alloc(rd);
-            manager.load(rd, dest);
+            std::string dest = manager.load(rd);
             if (rs == rt) {
                 out.emit(string("    mov ") + dest + ", 0", code[p]);
             }
@@ -211,7 +221,7 @@ void x86_gen_callable() {
         }
         else if (code[p].op == "cmp") {
             if (code[p].rs->t == Value::TYPE::INT && code[p].rt->t == Value::TYPE::INT ) {
-                std::string t = manager.alloc("~~tcmp");
+                std::string t = manager.load(code[p].rd->sv);
                 out.emit(string("    mov ") + t + ", " + code[p].rs->value());
                 out.emit(string("    cmp ") + t + ", " + code[p].rt->value());
                 manager.release(t, true);
@@ -224,13 +234,35 @@ void x86_gen_callable() {
             }
             else {
                 if (manager.exist(code[p].rs->sv).length() == 0 && manager.exist(code[p].rt->sv).length() == 0) {
-                    manager.load(code[p].rs->sv, manager.alloc(code[p].rs->sv));
+                    manager.load(code[p].rs->sv);
                 }
                 out.emit("    cmp " + manager.locate(code[p].rs->sv) + ", " + manager.locate(code[p].rt->sv));
             }
         }
         else if (code[p].op == "goto") {
             out.emit(string("    ") + code[p].rd->sv + " __L" + code[p].rs->value(), code[p]);
+        }
+        else if (code[p].op == "forend") {
+            manager.store(code[p].rt->sv);
+            out.emit(string("    ") + code[p].rd->sv + " __L" + code[p].rs->value(), code[p]);
+        }
+        else if (code[p].op == "switch") {
+            std::string cond;
+            if (code[p].rd->t == Value::TYPE::INT) {
+                cond = manager.load(code[p].rs->sv);
+                out.emit(string("    mov " + cond + ", " + code[p].rd->value()));
+            }
+            else {
+                cond = manager.load(code[p].rd->sv);
+            }
+            while(code[++p].op == "case") {
+                out.emit("    cmp " + cond + ", " + code[p].rd->value());
+                out.emit("    je __L" + code[p].rs->value());
+            }
+            p = p - 1;
+        }
+        else if (code[p].op == "endswitch") {
+            out.emit("__L" + code[p].rd->value() + ":");
         }
         else {
             out.emit("UNIMPLEMENT", code[p]);
@@ -259,12 +291,18 @@ void pl0_x86_gen(std::string file, std::vector<TAC> & tac) {
     out.emit(string(""));
     out.emit(string("section .data"));
     out.emit(string("    __format_int:       db      \"%d\", 0x0"));
-    out.emit(string("    __format_char:      db      \"%d\", 0x0"));
-    out.emit(string("    __format_string:    db      \"%d\", 0x0"));
+    out.emit(string("    __format_char:      db      \"%c\", 0x0"));
+    out.emit(string("    __format_string:    db      \"%s\", 0x0"));
     out.emit(string(""));
     out.emit(string("section .text"));
     code = tac; p = 1;
     x86_gen_callable();
+    // dump all constant ascii string.
+    out.emit(string(""));
+    out.emit(string("section .data"));
+    for (auto && a: asciis) {
+        out.emit(string("    __L") + a.second + ":\t\tdb\t\t\"" + a.first + "\", 0xA, 0x0");
+    }
 }
 
 

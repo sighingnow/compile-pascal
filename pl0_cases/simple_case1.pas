@@ -1,17 +1,16 @@
 const a = 1, b = 2, c = 3, d = 'd', e = 'e';
-var x, y, g: integer;
-    a, b: char;
-    c: array [100] of char;
+var x, y, z: integer;
 
 begin
-    case (a+b) of 12121 : read(y) end;
+    read(x, y, z);
+    case (a+b) of
+        3: write(x+y+z)
+    end;
     case a of
-        1 : read(x); 
-        'a': read(y);
-        'e': begin 
-            read(x);
-            read(y);
-            read(z);
+        1  : write(x); 
+        2  : write(y);
+        'a': begin 
+            write(z);
         end
-    end
+    end;
 end.

@@ -65,7 +65,7 @@ clean:
 run:
 	@cls
 	@make dist
-	@pl0c.out pl0_cases/code3.pas > a.asm
+	@pl0c.out pl0_cases/simple1.pas > a.asm
 
 link-gcc:
 	nasm a.asm -fwin32 -o a.obj

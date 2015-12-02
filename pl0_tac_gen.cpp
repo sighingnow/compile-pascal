@@ -316,14 +316,20 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
 void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     cout << __func__;
     Value *val = pl0_tac_expr(stmt->expr).first;
-    int endlabel = irb.makelabel();
-    irb.emit("switch", new Value(endlabel), val);
+    int t, endlabel = irb.makelabel();
+    irb.emit("switch", val, new Value(irb.maketmp()), new Value(endlabel));
+    std::vector<int> labels;
     for (auto item: stmt->terms) {
-        irb.emit("case", new Value(item->constv->val));
-        irb.emitlabel(irb.makelabel());
-        pl0_tac_stmt(item->stmt);
+        t = irb.makelabel();
+        irb.emit("case", new Value(item->constv->val), new Value(t));
+        labels.emplace_back(t);
     }
-    irb.emit("endcase", "");
+    for (size_t i = 0; i < labels.size(); ++i) {
+        irb.emitlabel(labels[i]);
+        pl0_tac_stmt(stmt->terms[i]->stmt);
+        irb.emit("goto", new Value("jmp"), new Value(endlabel));
+    }
+    irb.emit("endswitch", new Value(endlabel));
 }
 
 void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
@@ -362,7 +368,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
 }
 
 void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
-    cout << "TODO" << __func__;
+    cout << __func__;
     // code structure: compare -> execute -> compare again
     int beginlabel = irb.makelabel();
     int endlabel = irb.makelabel();
@@ -372,21 +378,24 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     if (s.second != "integer" && s.second != "char") {
         pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
     }
+    irb.emit("def", new Value(stmt->iter->id), new Value("integer"), new Value(-1));
     irb.emit("=", new Value(stmt->iter->id), s.first);
     irb.emitlabel(beginlabel);
     pair<Value *, string> t = pl0_tac_expr(stmt->end);
     if (t.second != "integer" && t.second != "char") {
         pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
     }
-    irb.emit("cmp", new Value(""), new Value(stmt->iter->id), t.first);
+    irb.emit("cmp", new Value(irb.maketmp()), new Value(stmt->iter->id), t.first);
     if (stmt->step->val == 1) {
         irb.emit("goto", new Value("jg"), new Value(endlabel));
     }
     else {
-        irb.emit("goto", new Value("jlt"), new Value(endlabel));
+        irb.emit("goto", new Value("jl"), new Value(endlabel));
     }
     pl0_tac_stmt(stmt->stmt);
-    irb.emit("goto", new Value("jmp"), new Value(beginlabel));
+    irb.emit("+", new Value(stmt->iter->id), new Value(stmt->iter->id), new Value(stmt->step->val));
+    irb.emit("forend", new Value("jmp"), new Value(beginlabel), new Value(stmt->iter->id));
+    irb.emit("undef", new Value(stmt->iter->id));
     vartb.pop(); // pop up loop iterator.
     irb.emitlabel(endlabel);
 }
@@ -410,13 +419,13 @@ void pl0_tac_write_stmt(pl0_ast_write_stmt const *stmt) {
     cout << __func__;
     switch (stmt->t) {
         case pl0_ast_write_stmt::type_t::ONLY_STRING:
-            irb.emit("write_s", stmt->str->val);
+            irb.emit("write_s", new Value(stmt->str->val), new Value(irb.makelabel()));
             break;
         case pl0_ast_write_stmt::type_t::ONLY_EXPR:
             irb.emit("write_e", pl0_tac_expr(stmt->expr).first);
             break;
         case pl0_ast_write_stmt::type_t::STRING_AND_EXPR:
-            irb.emit("write_s", stmt->str->val);
+            irb.emit("write_s", new Value(stmt->str->val), new Value(irb.makelabel()));
             irb.emit("write_e", pl0_tac_expr(stmt->expr).first);
             break;
         default: cout << "UNIMPLEMENT WRITE TYPE" << endl;
@@ -459,7 +468,7 @@ void pl0_tac_condition(pl0_ast_condtion const *cond) {
     if (lhs.second != rhs.second) {
         pl0_ast_error(cond->loc, "compare two expressions with different types.");
     }
-    irb.emit("cmp", new Value(cond->op->op), lhs.first, rhs.first);
+    irb.emit("cmp", new Value(irb.maketmp()), lhs.first, rhs.first);
 }
 
 pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
