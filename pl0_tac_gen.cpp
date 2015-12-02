@@ -32,7 +32,7 @@ void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt);
 void pl0_tac_write_stmt(pl0_ast_write_stmt const *stmt);
 void pl0_tac_null_stmt(pl0_ast_null_stmt const *stmt);
 pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr);
-Value *pl0_tac_condition(pl0_ast_condtion const *cond);
+void pl0_tac_condition(pl0_ast_condtion const *cond);
 pair<Value *, string> pl0_tac_term(pl0_ast_term const *term);
 pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor);
 pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt);
@@ -282,17 +282,34 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
 
 void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     cout << __func__;
-    Value *cond = pl0_tac_condition(stmt->cond);
+    pl0_tac_condition(stmt->cond);
     int thenlabel = irb.makelabel();
     int elselabel = irb.makelabel();
     int endlabel = irb.makelabel();
-    irb.emit("iffalse", new Value(elselabel), cond);
+    if (stmt->cond->op->op == "<") {
+        irb.emit("goto", new Value("jge"), new Value(elselabel));
+    }
+    else if (stmt->cond->op->op == "<=") {
+        irb.emit("goto", new Value("jg"), new Value(elselabel));
+    }
+    else if (stmt->cond->op->op == ">") {
+        irb.emit("goto", new Value("jle"), new Value(elselabel));
+    }
+    else if (stmt->cond->op->op == ">=") {
+        irb.emit("goto", new Value("jl"), new Value(elselabel));
+    }
+    else if (stmt->cond->op->op == "=") {
+        irb.emit("goto", new Value("jne"), new Value(elselabel));
+    }
+    else if (stmt->cond->op->op == "<>") {
+        irb.emit("goto", new Value("je"), new Value(elselabel));
+    }
     irb.emitlabel(thenlabel);
     pl0_tac_stmt(stmt->then_block);
-    irb.emit("goto", new Value(endlabel));
+    irb.emit("goto", new Value("jmp"), new Value(endlabel));
     irb.emitlabel(elselabel);
     pl0_tac_stmt(stmt->else_block);
-    irb.emit("goto", new Value(endlabel));
+    irb.emit("goto", new Value("jmp"), new Value(endlabel));
     irb.emitlabel(endlabel);
 }
 
@@ -346,12 +363,31 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
 
 void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     cout << "TODO" << __func__;
+    // code structure: compare -> execute -> compare again
     int beginlabel = irb.makelabel();
     int endlabel = irb.makelabel();
+    // add loop iterator to symbol table.
+    vartb.push(variable(stmt->iter->id, "integer"));
+    pair<Value *, string> s = pl0_tac_expr(stmt->initial);
+    if (s.second != "integer" && s.second != "char") {
+        pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
+    }
+    irb.emit("=", new Value(stmt->iter->id), s.first);
     irb.emitlabel(beginlabel);
-    // TODO: test loop condition.
+    pair<Value *, string> t = pl0_tac_expr(stmt->end);
+    if (t.second != "integer" && t.second != "char") {
+        pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
+    }
+    irb.emit("cmp", new Value(""), new Value(stmt->iter->id), t.first);
+    if (stmt->step->val == 1) {
+        irb.emit("goto", new Value("jg"), new Value(endlabel));
+    }
+    else {
+        irb.emit("goto", new Value("jlt"), new Value(endlabel));
+    }
     pl0_tac_stmt(stmt->stmt);
-    irb.emit("goto", new Value(beginlabel));
+    irb.emit("goto", new Value("jmp"), new Value(beginlabel));
+    vartb.pop(); // pop up loop iterator.
     irb.emitlabel(endlabel);
 }
 
@@ -416,16 +452,14 @@ pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
     return make_pair(ans, head.second);
 }
 
-Value *pl0_tac_condition(pl0_ast_condtion const *cond) {
+void pl0_tac_condition(pl0_ast_condtion const *cond) {
     cout << __func__;
     auto lhs = pl0_tac_expr(cond->lhs);
     auto rhs = pl0_tac_expr(cond->rhs);
     if (lhs.second != rhs.second) {
         pl0_ast_error(cond->loc, "compare two expressions with different types.");
     }
-    Value *t = new Value(irb.maketmp());
-    irb.emit(cond->op->op, t, lhs.first, rhs.first);
-    return t;
+    irb.emit("cmp", new Value(cond->op->op), lhs.first, rhs.first);
 }
 
 pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
@@ -561,7 +595,7 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
         }
     }
     string retval = irb.makeret();
-    irb.emit("callfunc", f.name);
+    irb.emit("callfunc", f.name, retval);
     for (auto arg: args) {
         irb.emit("pop", arg.first);
     }

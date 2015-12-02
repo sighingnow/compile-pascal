@@ -22,11 +22,11 @@ std::string x86_gen_def() {
     }
     dist -= size;
     runtime.push(LOC(code[p].rd->sv, dist));
-    return string("    sub esp, ") + std::to_string(size) + "     ;; " + code[p].str();
+    return string("    sub esp, ") + std::to_string(size) + "\t\t;; " + code[p].str();
 }
 
 void x86_gen_param() {
-    int size = 4;
+    int size = 8; // the first argument: ebp+8
     while (code[p].op == "param" || code[p].op == "paramref") {
         runtime.push(LOC(code[p].rd->sv, size, code[p].op == "paramref"));
         p = p + 1; size = size + 4;
@@ -55,7 +55,6 @@ void x86_gen_callable() {
     }
     runtime.dump();
     while (code[p].op != "endproc" && code[p].op != "endfunc") {
-        // binary operator: alloc register, then move left oprand to this register, then do calculus.
         if (code[p].op == "=") {
             if (code[p].rs->t == Value::TYPE::INT) {
                 out.emit(string("    mov " + manager.locate(code[p].rd->sv) + ", " + std::to_string(code[p].rs->iv)), code[p]);
@@ -75,37 +74,48 @@ void x86_gen_callable() {
             out.emit(string("    sub esp, ") + std::to_string(4), code[p]);
         }
         else if (code[p].op == "setret") {
-            if (manager.exist(code[p].rd->sv).length() == 0) {
-                out.emit("    mov dword [ebp-4], " + manager.alloc(code[p].rd->sv), code[p]);
+            std::string ret;
+            if (code[p].rd->t == Value::TYPE::INT) {
+                ret = code[p].rd->value();
             }
             else {
-                out.emit("    mov dword [ebp-4], " + manager.locate(code[p].rd->sv), code[p]);
+                if (manager.exist(code[p].rd->sv).length() == 0) {
+                    manager.load(code[p].rd->sv, manager.alloc(code[p].rd->sv));
+                }
+                ret = manager.locate(code[p].rd->sv);
             }
+            out.emit(string("    mov dword [ebp-4], ") + ret, code[p]);
         }
         else if (code[p].op == "exit") {
-            out.emit(string("    mov eax, dword ") + std::to_string(code[p].rd->iv), code[p]);
+            out.emit(string("    mov eax, ") + code[p].rd->value(), code[p]);
         }
         else if (code[p].op == "loadret") {
             out.emit("    mov eax, dword [ebp-4]", code[p]);
         }
         else if (code[p].op == "push") {
+            manager.spill("eax");
             if (manager.exist(code[p].rd->sv).length() == 0) {
                 manager.load(code[p].rd->sv, "eax");
                 out.emit(string("    push eax"), code[p]);
             }
             else {
-                out.emit(string("    push ") + code[p].rd->sv, code[p]);
+                out.emit(string("    push ") + manager.locate(code[p].rd->sv), code[p]);
             }
         }
         else if (code[p].op == "pushref") {
+            manager.spill("eax");
             manager.store(code[p].rd->sv);
             out.emit(string("    lea eax, ") + manager.addr(code[p].rd->sv));
             out.emit(string("    push dword eax"), code[p]);
         }
         else if (code[p].op == "pop") {
-            out.emit(string("    sub esp, 4"));
+            out.emit(string("    add esp, 4"), code[p]);
         }
-        else if (code[p].op == "callfunc" || code[p].op == "callproc") {
+        else if (code[p].op == "callfunc") {
+            out.emit("    call " + code[p].rd->sv, code[p]);
+            manager.remap("eax", code[p].rs->sv);
+        }
+        else if (code[p].op == "callproc") {
             out.emit("    call " + code[p].rd->sv, code[p]);
         }
         else if (code[p].op == "read") {
@@ -113,7 +123,7 @@ void x86_gen_callable() {
             out.emit(string("    push dword eax"));
             out.emit(string("    push dword __format_int"));
             out.emit(string("    call _scanf"), code[p]);
-            out.emit(string("    add esp, 8     ;; pop stack once."));
+            out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
         else if (code[p].op == "write_e") {
             // if (manager.exist(code[p].rd->sv).length() == 0) {
@@ -122,7 +132,7 @@ void x86_gen_callable() {
             out.emit(string("    push ") + manager.locate(code[p].rd->sv));
             out.emit(string("    push dword __format_int"));
             out.emit(string("    call    _printf"), code[p]);
-            out.emit(string("    add esp, 8     ;; pop stack once."));
+            out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
         else if (code[p].op == "+") {
             std::string rd = code[p].rd->sv, rs = code[p].rs->value(), rt = code[p].rt->value();
@@ -196,7 +206,35 @@ void x86_gen_callable() {
                 }
             }
         }
-
+        else if (code[p].op == "label") {
+            out.emit(code[p].rd->sv + ":");
+        }
+        else if (code[p].op == "cmp") {
+            if (code[p].rs->t == Value::TYPE::INT && code[p].rt->t == Value::TYPE::INT ) {
+                std::string t = manager.alloc("~~tcmp");
+                out.emit(string("    mov ") + t + ", " + code[p].rs->value());
+                out.emit(string("    cmp ") + t + ", " + code[p].rt->value());
+                manager.release(t, true);
+            }
+            else if (code[p].rs->t == Value::TYPE::INT) {
+                out.emit(string("    cmp ") + code[p].rs->value() + ", " + manager.locate(code[p].rt->sv));
+            }
+            else if (code[p].rt->t == Value::TYPE::INT) {
+                out.emit(string("    cmp ") + manager.locate(code[p].rs->sv) + ", " + code[p].rt->value());
+            }
+            else {
+                if (manager.exist(code[p].rs->sv).length() == 0 && manager.exist(code[p].rt->sv).length() == 0) {
+                    manager.load(code[p].rs->sv, manager.alloc(code[p].rs->sv));
+                }
+                out.emit("    cmp " + manager.locate(code[p].rs->sv) + ", " + manager.locate(code[p].rt->sv));
+            }
+        }
+        else if (code[p].op == "goto") {
+            out.emit(string("    ") + code[p].rd->sv + " __L" + code[p].rs->value(), code[p]);
+        }
+        else {
+            out.emit("UNIMPLEMENT", code[p]);
+        }
         // for next three-address-code.
         p = p + 1;
     }
@@ -212,8 +250,8 @@ void pl0_x86_gen(std::string file, std::vector<TAC> & tac) {
     // out.emit(string("    .file    \"") + file + "\"");
     // out.emit(string("    .intel_syntax noprefix"));
     // out.emit(string("    .ident   \"") + " pl0 compiler.\"");
-    out.emit(string("    bits 32             ;; 32bit machine"));
-    out.emit(string("    cpu 686             ;; i686 CPU"));
+    out.emit(string("    bits 32\t\t;; 32bit machine"));
+    out.emit(string("    cpu 686\t\t;; i686 CPU"));
     out.emit(string(""));
     out.emit(string(";; external functions (from standard C library)"));
     out.emit(string("    extern _scanf"));

@@ -33,13 +33,13 @@ int main(int argc, char **argv) {
     if (!res.strict) {
         cout << "Extra characters in source text." << endl;
     }
-    cout << ";; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+    cout << ";; <<<<<<<<<<<<<  Three-address Code  <<<<<<<<<<<<<<<<<<<<<<<<" << endl;
     if (!pl0_tac_program(res.actual)) {
         cout << "Errors occurred during semantic analysing." << endl;
         return 0;
     }
     irb.dump();
-    cout << ";; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+    cout << ";; <<<<<<<<<<<<<  Assembly (Intel syntax, nasm)   <<<<<<<<<<<<" << endl;
     pl0_x86_gen(string(argv[1]), irb.irs);
 
     return 0;

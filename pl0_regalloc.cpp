@@ -30,13 +30,24 @@ string SimpleAllocator::alloc(std::string name) {
 }
 
 void SimpleAllocator::remap(std::string reg, std::string dst) {
+    this->used[reg] = true;
     this->record[reg] = dst;
 }
 
 void SimpleAllocator::release(std::string name, bool is_reg) {
     if (is_reg) {
+        // release register.
         this->used[name] = false;
         this->record.erase(name);
+    }
+    else {
+        // release variable.
+        for (auto && p: this->record) {
+            if (p.second == name) {
+                this->used[p.first] = false;
+                this->record.erase(p.first);
+            }
+        }
     }
 }
 
@@ -57,11 +68,14 @@ string SimpleAllocator::load(std::string name, std::string target) {
 }
 
 void SimpleAllocator::spill(std::string reg) {
-    // this->dump();
-    this->store(this->record[reg]);
-    this->used[reg] = false;
-    this->record.erase(reg);
-    // this->dump();
+    if (this->used[reg]) {
+        this->store(this->record[reg]);
+        this->used[reg] = false;
+        this->record.erase(reg);
+    }
+    else {
+        // DO NOTHING
+    }
 }
 
 void SimpleAllocator::store(std::string name) {
@@ -70,7 +84,7 @@ void SimpleAllocator::store(std::string name) {
     if (this->env.find(name, false, loc) == false) {
         this->dist = this->dist - 4;
         env.push(LOC(name, dist));
-        out.emit(string("    sub esp, 4        ;; store temporary variable ") + name + " on runtime stack.");
+        out.emit(string("    sub esp, 4\t\t;; store temporary variable ") + name + " on runtime stack.");
     }
     // store value from register to memory.
     for (auto && p: this->record) {
@@ -88,14 +102,9 @@ void SimpleAllocator::store(std::string name) {
 std::string SimpleAllocator::locate(std::string name) {
     std::string res;
     if ((res = exist(name)).length() == 0) {
-        if (name == "~ret") {
-            res = "eax";
-        }
-        else {
-            LOC loc;
-            env.find(name, true, loc);
-            res = "dword " + this->addr(name);
-        }
+        LOC loc;
+        env.find(name, true, loc);
+        res = "dword " + this->addr(name);
     }
     return res;
 }

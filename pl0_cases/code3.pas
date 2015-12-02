@@ -1,12 +1,17 @@
-var a, b, c, d, t: integer;
-    x: char;
+var a: integer;
 
-procedure f;
+function fib(n: integer): integer;
 begin
-    read(a);
+    if n < 2 then
+        if n = 0 then
+            fib := 0
+        else
+            fib := 1
+    else
+        fib := fib(n-1) + fib(n-2)
 end;
 
 begin
-    f;
-    write((a+a)+(a+(a+a))+(a+(a+(a+(a+(a+(a+(a+(a+a)))))))));
+    read(a);
+    write(fib(a));
 end.

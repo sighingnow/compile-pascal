@@ -368,7 +368,7 @@ public:
     std::vector<struct TAC> irs;
 public:
     IRBuilder() {}
-    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value(label))); }
+    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value("__L" + std::to_string(label)))); }
     void emit(std::string op, Value *rd, Value *rs = nullptr, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, rs, rt)); }
     void emit(TAC c) { irs.emplace_back(c); }
     void emit(std::string op, std::string rd) { irs.emplace_back(TAC(op, new Value(rd))); }
@@ -472,6 +472,7 @@ public:
     bool find(std::string const &, bool);
     bool find(std::string const &, bool, T &);
     void push(T const &);
+    void pop();
     void tag();
     void detag();
     int depth();
@@ -519,6 +520,9 @@ bool pl0_env<T>::find(std::string const & name, bool cross) {
 
 template<typename T>
 void pl0_env<T>::push(T const & e) { this->tb.emplace_back(e); }
+
+template<typename T>
+void pl0_env<T>::pop() { this->tb.pop_back(); }
 
 template<typename T>
 void pl0_env<T>::tag() { this->tags.emplace_back(this->tb.size()); }
