@@ -1,6 +1,12 @@
-var a, b, c, t: integer;
+var a, b, c, d, t: integer;
+    x: char;
+
+procedure f;
 begin
-    t := -a + b + c + a + b;
-    a := a + b + c;
-    c := a + a + a + a + a;
+    read(a);
+end;
+
+begin
+    f;
+    write((a+a)+(a+(a+a))+(a+(a+(a+(a+(a+(a+(a+(a+a)))))))));
 end.

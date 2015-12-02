@@ -332,6 +332,26 @@ struct Value {
     Value(int v): t(TYPE::INT), iv(v) {};
     Value(std::string v): t(TYPE::STR), sv(v) {};
     std::string str();
+    bool operator == (Value v) {
+        bool res = this->t == v.t;
+        if (res) {
+            if (this->t == TYPE::INT) {
+                res = res && this->iv == v.iv;
+            }
+            else {
+                res = res && this->sv == v.sv;
+            }
+        }
+        return res;
+    }
+    std::string value() {
+        if (this->t == TYPE::INT) {
+            return std::to_string(this->iv);
+        }
+        else {
+            return this->sv;
+        }
+    }
 };
 
 struct TAC {
@@ -389,6 +409,7 @@ struct constant {
 struct proc {
     std::string name;
     std::vector<std::string> param_t;
+    proc(): name("") {}
     proc(std::string, std::vector<std::string> &);
     std::string str() {
         std::string res = name + " :: ";
@@ -417,13 +438,16 @@ struct func {
 // location when generate assembly language code.
 struct LOC {
     std::string name;
-    int offset; // offset from variable's base address to ebp register.
+    std::string offset; // offset from variable's base address to ebp register.
     bool is_ref;
     bool in_mem; // true: in memory, false: in register;
-    LOC(): name(""), offset(0x7fffffff), is_ref(false), in_mem(false) {}
-    LOC(string name, int offset, bool is_ref = false): name(name), offset(offset), is_ref(is_ref), in_mem(false) {}
+    LOC(): name(""), offset(std::to_string(0x7fffffff)), is_ref(false), in_mem(false) {}
+    LOC(string name, int offset, bool is_ref = false): name(name), is_ref(is_ref), in_mem(false) {
+        this->offset = offset < 0 ? std::to_string(offset) : (string("+") + std::to_string(offset));
+    }
+    LOC(string name, std::string offset, bool is_ref = false): name(name), offset(offset), is_ref(is_ref), in_mem(false) {}
     std::string str() {
-        return name + ": " + std::to_string(offset) + " is_ref: " + std::to_string(is_ref) + " in_mem: " + std::to_string(in_mem);
+        return name + ": " + this->offset + " is_ref: " + std::to_string(is_ref) + " in_mem: " + std::to_string(in_mem);
     }
 };
 
@@ -433,7 +457,7 @@ struct IOOut {
         cout << s << endl;
     }
     void emit(string s, TAC c) {
-        cout << s << "\t\t// " << c.str() << endl;
+        cout << s << "\t\t;; " << c.str() << endl;
     }
 };
 
@@ -450,13 +474,14 @@ public:
     void push(T const &);
     void tag();
     void detag();
+    int depth();
     int depth(std::string const &);
     void dump() {
-        cout << "-----------------dump symbol table-------------------" << endl;
+        cout << ";; -----------------dump symbol table-------------------" << endl;
         for (auto && t: tb) {
-            cout << t.str() << endl;
+            cout << ";; " << t.str() << endl;
         }
-        cout << "-----------------------------------------------------" << endl;
+        cout << ";; -----------------------------------------------------" << endl;
     }
 };
 
@@ -502,6 +527,11 @@ template<typename T>
 void pl0_env<T>::detag() {
     while (tb.size() > (size_t)tags.back()) { tb.pop_back(); }
     tags.pop_back();
+}
+
+template<typename T>
+int pl0_env<T>::depth() {
+    return this->tags.size()-1;
 }
 
 template<typename T>

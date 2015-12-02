@@ -49,13 +49,13 @@ test: test_pl0_parser.out
 dist: pl0c.out
 
 pl0c.out: $(UTILS) pl0c.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 %.out: $(UTILS) %.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(GTEST_LDFLAGS) $^ -o $@
+	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $(GTEST_LDFLAGS) $^ -o $@
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<
 
 clean:
 	rm -f *.o
@@ -63,6 +63,11 @@ clean:
 .PHONY: clean
 
 run:
-	cls
-	make dist
-	pl0c.out pl0_cases/code3.pas
+	@cls
+	@make dist
+	@pl0c.out pl0_cases/code3.pas
+
+link-gcc:
+	nasm a.asm -fwin32 -o a.obj
+	gcc a.obj -o a.out
+	./a.out

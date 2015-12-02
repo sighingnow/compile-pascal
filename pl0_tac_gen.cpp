@@ -69,6 +69,7 @@ bool pl0_tac_program(pl0_ast_program const *program) {
     irb.emit("program", "");
     irb.emit("procedure", "_main");
     pl0_tac_prog(program->program);
+    irb.emit("exit", new Value(0)); // main function: exit with 0.
     irb.emit("endproc", "_main");
     irb.emit("endprogram", "");
     return status;
@@ -176,7 +177,9 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
             irb.emit("function", scope_name());
             functb.push(func(scope_name(), f.first->type->type, functype));
             proctb.tag(); functb.tag();
+            irb.emit("allocret", scope_name());
             pl0_tac_prog(f.second);
+            irb.emit("loadret", scope_name());
             irb.emit("endfunc", scope_name());
             // end of current scope.
             scope.pop_back(); // restore scope.
@@ -211,7 +214,7 @@ vector<string> pl0_tac_param(pl0_ast_param_list const *param) {
             }
             vartb.push(variable(id->id, group->type->type)); // add parameters to symbol table.
             if (group->is_ref) {
-                type.emplace_back(string("ref") + group->type->type);
+                type.emplace_back(string("ref_") + group->type->type);
                 irb.emit("paramref", id->id, group->type->type);
             }
             else {
@@ -308,18 +311,36 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
 
 void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
     cout << __func__;
-    std::vector<Value *> args;
+    std::vector<std::pair<Value *, std::string>> args;
     if (stmt->args) {
         for (auto argexpr: stmt->args->args) {
-            args.emplace(args.begin(), pl0_tac_expr(argexpr->arg).first);
+            args.emplace(args.begin(), pl0_tac_expr(argexpr->arg));
         }
     }
-    for (auto arg: args) {
-        irb.emit("push", arg);
+    proc p;
+    proctb.find(stmt->id->id, true, p);
+    if (args.size() != p.param_t.size()) {
+        pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
     }
-    irb.emit("callproc", stmt->id->id);
+    else {
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (args[i].second != p.param_t[i]) {
+                pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
+            }
+            if (p.param_t[i].length() > 4 && p.param_t[i].substr(0, 4) == "ref_") {
+                if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
+                    pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
+                }
+                irb.emit("pushref", args[i].first);
+            }
+            else {
+                irb.emit("push", args[i].first);
+            }
+        }
+    }
+    irb.emit("callproc", p.name);
     for (auto arg: args) {
-        irb.emit("pop", arg);
+        irb.emit("pop", arg.first);
     }
 }
 
@@ -353,14 +374,14 @@ void pl0_tac_write_stmt(pl0_ast_write_stmt const *stmt) {
     cout << __func__;
     switch (stmt->t) {
         case pl0_ast_write_stmt::type_t::ONLY_STRING:
-            irb.emit("writes", stmt->str->val);
+            irb.emit("write_s", stmt->str->val);
             break;
         case pl0_ast_write_stmt::type_t::ONLY_EXPR:
-            irb.emit("writee", pl0_tac_expr(stmt->expr).first);
+            irb.emit("write_e", pl0_tac_expr(stmt->expr).first);
             break;
         case pl0_ast_write_stmt::type_t::STRING_AND_EXPR:
-            irb.emit("writes", stmt->str->val);
-            irb.emit("writee", pl0_tac_expr(stmt->expr).first);
+            irb.emit("write_s", stmt->str->val);
+            irb.emit("write_e", pl0_tac_expr(stmt->expr).first);
             break;
         default: cout << "UNIMPLEMENT WRITE TYPE" << endl;
     }
@@ -510,22 +531,39 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
     if (!functb.find(fid, true)) {
         pl0_ast_error(stmt->loc, string("use of undeclared identifier ") + "\"" + fid + "\"");
     }
-    std::vector<Value *> args;
+    std::vector<std::pair<Value *, std::string>> args;
     if (stmt->args) {
         for (auto argexpr: stmt->args->args) {
             auto arg = pl0_tac_expr(argexpr->arg);
 
-            args.emplace(args.begin(), arg.first);
+            args.emplace(args.begin(), arg);
         }
     }
-    for (auto arg: args) {
-        irb.emit("push", arg);
+    func f;
+    functb.find(fid, true, f);
+    if (args.size() != f.param_t.size()) {
+        pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
+    }
+    else {
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (args[i].second != f.param_t[i]) {
+                pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
+            }
+            if (f.param_t[i].length() > 4 && f.param_t[i].substr(0, 4) == "ref_") {
+                if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
+                    pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
+                }
+                irb.emit("pushref", args[i].first);
+            }
+            else {
+                irb.emit("push", args[i].first);
+            }
+        }
     }
     string retval = irb.makeret();
-    irb.emit("allocret", retval);
-    irb.emit("callfunc", fid);
+    irb.emit("callfunc", f.name);
     for (auto arg: args) {
-        irb.emit("pop", arg);
+        irb.emit("pop", arg.first);
     }
     func fn;
     functb.find(fid, true, fn);
