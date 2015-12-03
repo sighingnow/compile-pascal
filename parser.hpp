@@ -10,6 +10,26 @@
 
 pair<int, char> any_fn(input_t *text) {
     if (text->empty()) { return make_pair(-1, '\0'); }
+    // char k, c = text->at(0);
+    // bool escaped = false;
+    // if (c == '\\' && text->length() >= 2) {
+    //     switch (text->at(1)) {
+    //         case '\\': k = '\\'; break;
+    //         case '0': k = '\0'; break;
+    //         case 'n': k = '\n'; break;
+    //         case 'r': k = '\r'; break;
+    //         case 'v': k = '\v'; break;
+    //         case 't': k = '\t'; break;
+    //         case 'b': k = '\b'; break;
+    //         case 'f': k = '\f'; break;
+    //         default: k = text->at(1);
+    //     }
+    //     escaped = true;
+    // }
+    // else {
+    //     k = c;
+    // }
+    // return make_pair(k != EOF ? (escaped ? 2 : 1) : (-1), k);
     char c = text->at(0);
     return make_pair(c != EOF ? (1) : (-1), c);
 }
@@ -101,6 +121,27 @@ static const class parser_t<char> alnum("alnum", alnum_fn);
 
 pair<int, char> print_fn(input_t *text) {
     if (text->empty()) { return make_pair(-1, '\0'); }
+    // char k, h, c = text->at(0);
+    // bool escaped = false;
+    // if (c == '\\' && text->length() >= 2) {
+    //     switch (text->at(1)) {
+    //         case '\\': k = '\\'; break;
+    //         case '0': k = '\0'; break;
+    //         case 'n': k = '\n'; break;
+    //         case 'r': k = '\r'; break;
+    //         case 'v': k = '\v'; break;
+    //         case 't': k = '\t'; break;
+    //         case 'b': k = '\b'; break;
+    //         case 'f': k = '\f'; break;
+    //         default: k = text->at(1);
+    //     }
+    //     h = text->at(1); escaped = true;
+    // }
+    // else {
+    //     h = c; k = c;
+    // }
+    // cout << ";; " << (int)k << endl;
+    // return make_pair(::isprint(h) ? (escaped ? 2 : 1) : (-1), k);
     char c = text->at(0);
     return make_pair(::isprint(c) ? (1) : (-1), c);
 }
