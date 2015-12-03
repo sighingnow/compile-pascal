@@ -114,6 +114,7 @@ std::string Value::str() {
     switch (t) {
         case INT: return std::to_string(iv);
         case STR: return sv;
+        default: return "";
     }
 }
 

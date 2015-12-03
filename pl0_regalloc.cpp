@@ -10,19 +10,26 @@ SimpleAllocator::SimpleAllocator(pl0_env<LOC> & env, struct IOOut & out, int & d
     }
 }
 
-string SimpleAllocator::alloc(std::string name) {
+string SimpleAllocator::alloc(std::string name, bool is_ref) {
     string res;
     if ((res = exist(name)).length() != 0) {
         return res;
     }
+    LOC loc;
     for (auto && r: regs) {
         if (!used[r] || record[r] == name) {
+            if (is_ref && r == "eax") {
+                continue; // don't map eax to a variable with reference type.
+            }
             used[r] = true;
             this->record[r] = name;
             return r; // found free register, or this variable already mapped to register.
         }
     }
     std::string r = regs[this->random()];
+    if (is_ref && r == "eax") {
+        r = "ebx";  // don't map eax to a variable with reference type.
+    }
     this->spill(r);
     this->used[r] = true;
     this->record[r] = name;
@@ -30,6 +37,7 @@ string SimpleAllocator::alloc(std::string name) {
 }
 
 void SimpleAllocator::remap(std::string reg, std::string dst) {
+    this->spill(reg);
     this->used[reg] = true;
     this->record[reg] = dst;
 }
@@ -57,13 +65,18 @@ void SimpleAllocator::release(std::string name, bool is_reg) {
 string SimpleAllocator::load(std::string name, std::string target) {
     std::string now = this->exist(name);
     if (now != target) {
-        this->spill(target);
-        if (now.length() == 0 && env.find(name, true)) {
-            out.emit("    mov " + target + ", dword " + this->addr(name));
+        this->remap(name, target);
+        if (now.length() == 0) {
+            if (env.find(name, true)) {
+                out.emit("    mov " + target + ", dword " + this->addr(name));
+            }
+            else {
+                // DO NOTHING, JUST MAINTAIN MAPPING.
+            }
         }
         else {
             out.emit("    mov " + target + ", " + now);
-            this->store(now);
+            this->release(now, true);
         }
     }
     return target;
@@ -75,9 +88,18 @@ string SimpleAllocator::load(std::string name) {
         return now;
     }
     else {
-        target = this->alloc(name);
-        if (env.find(name, true)) {
+        LOC loc;
+        if (env.find(name, true, loc)) {
+            if (loc.is_ref) {
+                target = this->alloc(name, true);
+            }
+            else {
+                target = this->alloc(name);
+            }
             out.emit("    mov " + target + ", dword " + this->addr(name));
+        }
+        else {
+            target = this->alloc(name);
         }
         return target;
     }
@@ -93,11 +115,17 @@ void SimpleAllocator::spill(std::string reg) {
     }
 }
 
+void SimpleAllocator::spillAll() {
+    for (auto && r: this->regs) {
+        this->spill(r);
+    }
+}
+
 void SimpleAllocator::store(std::string name) {
     LOC loc;
     if (this->exist(name).length() == 0) { return; }
     // alloc space on runtime stack.
-    if (this->env.find(name, false, loc) == false) {
+    if (this->env.find(name, true, loc) == false) {
         this->dist = this->dist - 4;
         env.push(LOC(name, dist));
         out.emit(string("    sub esp, 4\t\t;; store temporary variable ") + name + " on runtime stack.");
@@ -106,10 +134,12 @@ void SimpleAllocator::store(std::string name) {
     for (auto && p: this->record) {
         if (p.second == name) {
             if (loc.name.length() == 0) {
+                // temporary implicit variable.
                 out.emit(string("    mov dword [esp], ") + p.first);
             }
             else {
-                out.emit(string("    mov dword [ebp") + loc.offset + "], " + p.first);
+                // non-temporary explicit variable.
+                out.emit(string("    mov dword ") + this->addr(loc.name) + ", " + p.first);
             }
             this->release(p.first, true); break;
         }
@@ -131,15 +161,29 @@ std::string SimpleAllocator::addr(std::string name) {
     LOC loc;
     env.find(name, true, loc);
     if (d == 0) {
-        return "[ebp" + loc.offset + "]";
+        if (loc.is_ref) {
+            this->spill("eax");
+            out.emit("    mov eax, dword [ebp" + loc.offset + ']');
+            return "[eax]";
+        }
+        else {
+            return "[ebp" + loc.offset + "]";
+        }
     }
     else {
+        this->spill("eax");
         out.emit("    mov eax, dword [esp]");
         d = d - 1;
         while(d--) {
             out.emit("    lea eax, [eax]");
         }
-        return "[eax" + loc.offset + "]";
+        if (loc.is_ref) {
+            out.emit("    mov eax, [eax" + loc.offset + ']');
+            return "[eax]";
+        }
+        else {
+            return "[eax" + loc.offset + "]";
+        }
     }
 }
 

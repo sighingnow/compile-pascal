@@ -33,14 +33,24 @@ int main(int argc, char **argv) {
     if (!res.strict) {
         cout << "Extra characters in source text." << endl;
     }
+
     cout << ";; <<<<<<<<<<<<<  Three-address Code  <<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
     if (!pl0_tac_program(res.actual)) {
         cout << "Errors occurred during semantic analysing." << endl;
         return 0;
     }
     irb.dump();
+
     cout << ";; <<<<<<<<<<<<<  Assembly (Intel syntax, nasm)   <<<<<<<<<<<<" << endl;
-    pl0_x86_gen(string(argv[1]), irb.irs);
+
+    try { // try exception throwed during assembly code generating.
+        pl0_x86_gen(string(argv[1]), irb.irs);
+    } catch (std::exception & e) {
+        cout << string(";; !!!Exception: ") + string(e.what()) << endl;
+    } catch (...) {
+        cout << string(";; !!!Exception: ") + "unknown exception." << endl;
+    }
 
     return 0;
 }

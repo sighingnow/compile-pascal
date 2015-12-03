@@ -265,16 +265,19 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
         if (vartb.find(stmt->id->id, true, var) == false) {
             pl0_ast_error(stmt->id->loc, string("use of undeclared identifier ") + "\"" + stmt->id->id + "\"");
         }
-        if (var.len != -1) {
-            pl0_ast_error(stmt->id->loc, string("expected an non-array identifier ") + "\"" + stmt->id->id + "\"");
-        }
-        // assign to variable.
+        // assign to array element.
         if (stmt->idx) {
+            if (var.len == -1) {
+                pl0_ast_error(stmt->id->loc, string("treat ordinary variable ") + "\"" + stmt->id->id + "\" as an array");
+            }
             Value *idx = pl0_tac_expr(stmt->idx).first;
             irb.emit("[]=", new Value(stmt->id->id), idx, val);
         }
-        // assign to array element.
+        // assign to variable.
         else {
+            if (var.len != -1) {
+                pl0_ast_error(stmt->id->loc, string("expected an non-array identifier ") + "\"" + stmt->id->id + "\"");
+            }
             irb.emit("=", new Value(stmt->id->id), val);
         }
     }
@@ -286,6 +289,22 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     int thenlabel = irb.makelabel();
     int elselabel = irb.makelabel();
     int endlabel = irb.makelabel();
+    // reference: http://unixwiz.net/techtips/x86-jumps.html
+    // +--------+------------------------------+-------------+--------------------+
+    // |Instr   | Description                  | signed-ness | Flags              |
+    // +--------+------------------------------+-------------+--------------------+
+    // | JL/    | Jump if less                 | signed      | SF <> OF           |
+    // | JNGE   | Jump if not greater or equal |             |                    |
+    // +--------+------------------------------+-------------+--------------------+
+    // | JGE/   | Jump if greater or equal     | signed      | SF = OF            |
+    // | JNL    | Jump if not less             |             |                    |
+    // +--------+------------------------------+-------------+--------------------+
+    // | JLE/   | Jump if less or equal        | signed      | ZF = 1 or SF <> OF |
+    // | JNG    | Jump if not greater          |             |                    |
+    // +--------+------------------------------+-------------+--------------------+
+    // | JG/    | Jump if greater              | signed      | ZF = 0 and SF = OF |
+    // | JNLE   | Jump if not less or equal    |             |                    |
+    // +--------+------------------------------+-------------+--------------------+
     if (stmt->cond->op->op == "<") {
         irb.emit("goto", new Value("jge"), new Value(elselabel));
     }
@@ -347,10 +366,11 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
     }
     else {
         for (size_t i = 0; i < args.size(); ++i) {
-            if (args[i].second != p.param_t[i]) {
+            bool is_ref = p.param_t[i].length() > 4 && p.param_t[i].substr(0, 4) == "ref_";
+            if (args[i].second != (is_ref ? p.param_t[i].substr(4): p.param_t[i])) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
-            if (p.param_t[i].length() > 4 && p.param_t[i].substr(0, 4) == "ref_") {
+            if (is_ref) {
                 if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
@@ -372,14 +392,15 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     // code structure: compare -> execute -> compare again
     int beginlabel = irb.makelabel();
     int endlabel = irb.makelabel();
-    // add loop iterator to symbol table.
-    vartb.push(variable(stmt->iter->id, "integer"));
+    // validate loop iterator.
+    if (vartb.find(stmt->iter->id, true) == false) {
+        pl0_ast_error(stmt->iter->loc, string("undeclared identifier ") + "\"" + stmt->iter->id + "\"");
+    }
     pair<Value *, string> s = pl0_tac_expr(stmt->initial);
     if (s.second != "integer" && s.second != "char") {
         pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
     }
-    irb.emit("def", new Value(stmt->iter->id), new Value("integer"), new Value(-1));
-    irb.emit("=", new Value(stmt->iter->id), s.first);
+    irb.emit("forbegin", new Value(stmt->iter->id), s.first);
     irb.emitlabel(beginlabel);
     pair<Value *, string> t = pl0_tac_expr(stmt->end);
     if (t.second != "integer" && t.second != "char") {
@@ -394,9 +415,7 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     }
     pl0_tac_stmt(stmt->stmt);
     irb.emit("+", new Value(stmt->iter->id), new Value(stmt->iter->id), new Value(stmt->step->val));
-    irb.emit("forend", new Value("jmp"), new Value(beginlabel), new Value(stmt->iter->id));
-    irb.emit("undef", new Value(stmt->iter->id));
-    vartb.pop(); // pop up loop iterator.
+    irb.emit("forend", new Value("jmp"), new Value(beginlabel));
     irb.emitlabel(endlabel);
 }
 
@@ -465,6 +484,7 @@ void pl0_tac_condition(pl0_ast_condtion const *cond) {
     cout << __func__;
     auto lhs = pl0_tac_expr(cond->lhs);
     auto rhs = pl0_tac_expr(cond->rhs);
+    cout << ";; compare type: " << lhs.second <<  "  "  << rhs.second << endl;
     if (lhs.second != rhs.second) {
         pl0_ast_error(cond->loc, "compare two expressions with different types.");
     }
@@ -544,8 +564,8 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor) {
             // validate array index.
             idx = pl0_tac_expr(factor->arraye.second).first;                
             t = new Value(irb.maketmp());
-            irb.emit("[]", t, new Value(array.name), idx);
-            ans = make_pair(t, array.type);
+            irb.emit("=[]", t, new Value(array.name), idx);
+            ans = make_pair(t, array.type.substr(0, array.type.length()-5));
             break;
         default: ans = make_pair(new Value("^^^^^"), ""); cout << "UNIMPLEMENT EXPRESSION" << endl;
     }
@@ -589,10 +609,11 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
     }
     else {
         for (size_t i = 0; i < args.size(); ++i) {
-            if (args[i].second != f.param_t[i]) {
+            bool is_ref = f.param_t[i].length() > 4 && f.param_t[i].substr(0, 4) == "ref_";
+            if (args[i].second != (is_ref ? f.param_t[i].substr(4) : f.param_t[i])) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
-            if (f.param_t[i].length() > 4 && f.param_t[i].substr(0, 4) == "ref_") {
+            if (is_ref) {
                 if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }

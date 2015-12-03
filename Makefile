@@ -2,7 +2,7 @@
 
 MAKE 								:= make
 
-CXX									:= clang++
+CXX									:= g++
 CXXFLAGS							:= -Wall -Wextra -std=c++11 $(CXX_FLAGS_$(ARCH))
 LDFLAGS 							:= -O
 
@@ -58,16 +58,41 @@ pl0c.out: $(UTILS) pl0c.o
 	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<
 
 clean:
-	rm -f *.o
-	rm -f *.out
+	@rm -f *.o *.out
+	@rm -f *.obj *.exec
 .PHONY: clean
 
-run:
-	@cls
-	@make dist
-	@pl0c.out pl0_cases/simple1.pas > a.asm
+%.asm: %.pas
+	@pl0c.out $< > $@
 
-link-gcc:
-	nasm a.asm -fwin32 -o a.obj
-	gcc a.obj -o a.out
-	./a.out
+%.obj: %.asm
+	@nasm $< -f win32 -o $@
+
+%.exec: pl0_cases/%.obj
+	@gcc $< -o $@
+	@./$@
+	@rm -f $@
+
+allpas		:= test_for.exec \
+			test_recursive.exec \
+			test_fib1.exec \
+			test_fib2.exec \
+			test_mul_div.exec \
+			test_ref1.exec \
+			test_ref2.exec \
+			test_array1.exec \
+			test_case1.exec \
+			test_swap1.exec
+
+test-pas: $(allpas)
+
+.SECONDARY: a.asm
+
+compile:
+	pl0c.out pl0_cases/test_ref2.pas > a.asm
+	@make asm
+
+asm: a.asm
+	nasm -f win32 a.asm -o a.obj
+	gcc a.obj -o a.exec
+	./a.exec

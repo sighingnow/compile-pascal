@@ -57,17 +57,54 @@ void x86_gen_callable() {
     runtime.dump();
     while (code[p].op != "endproc" && code[p].op != "endfunc") {
         if (code[p].op == "=") {
+            std::string rs, rd = manager.load(code[p].rd->sv);
             if (code[p].rs->t == Value::TYPE::INT) {
-                out.emit(string("    mov " + manager.locate(code[p].rd->sv) + ", " + std::to_string(code[p].rs->iv)), code[p]);
+                rs = code[p].rs->value();
             }
             else {
-                if (manager.exist(code[p].rd->sv).length() == 0 && manager.exist(code[p].rs->sv).length() == 0) {
-                    out.emit("    mov " + manager.load(code[p].rd->sv) + ", " + manager.locate(code[p].rs->sv), code[p]);
-                }
-                else {
-                    out.emit("    mov " + manager.locate(code[p].rd->sv) + ", " + manager.locate(code[p].rs->sv), code[p]);
-                }
+                rs = manager.locate(code[p].rs->sv);
             }
+            out.emit(string("    mov ") + rd + ", " + rs, code[p]);
+        }
+        else if (code[p].op == "[]=") {
+            std::string rt, rs, rd;
+            if (code[p].rs->t == Value::TYPE::INT) {
+                rs = code[p].rs->value();
+            }
+            else {
+                rs = manager.load(code[p].rs->sv);
+            }
+            if (code[p].rt->t == Value::TYPE::INT) {
+                rt = code[p].rt->value();
+            }
+            else {
+                rt = manager.load(code[p].rt->sv);
+            }
+            rd = manager.locate(code[p].rd->sv);
+            if (rd.substr(0, 3) == "dwo") {
+                rd = rd.substr(0, rd.length()-1) + "+4*" + rs + "]";
+            }
+            else {
+                rd = string("dword [") + rd + "+4*" + rs + "]"; 
+            }
+            out.emit(string("    mov ") + rd + ", " + rt, code[p]);
+        }
+        else if (code[p].op == "=[]") {
+            std::string rt, rs, rd = manager.load(code[p].rd->sv);
+            if (code[p].rt->t == Value::TYPE::INT) {
+                rt = code[p].rt->value();
+            }
+            else {
+                rt = manager.load(code[p].rt->sv);
+            }
+            rs = manager.locate(code[p].rs->sv);
+            if (rs.substr(0, 3) == "dwo") {
+                rs = rs.substr(0, rs.length()-1) + "+4*" + rt + "]";
+            }
+            else {
+                rs = string("dword [") + rs + "+4*" + rt + "]"; 
+            }
+            out.emit(string("    mov ") + rd + ", " + rs, code[p]);
         }
         else if (code[p].op == "allocret") {
             dist = dist - 4;
@@ -91,18 +128,18 @@ void x86_gen_callable() {
             out.emit(string("    mov eax, ") + code[p].rd->value(), code[p]);
         }
         else if (code[p].op == "loadret") {
+            manager.spillAll();
             out.emit("    mov eax, dword [ebp-4]", code[p]);
         }
         else if (code[p].op == "def") {
-            x86_gen_def();
-        }
-        else if (code[p].op == "undef") {
-            runtime.pop();
-            manager.release(code[p].rd->sv, false);
+            out.emit(x86_gen_def());
         }
         else if (code[p].op == "push") {
-            manager.spill("eax");
-            if (manager.exist(code[p].rd->sv).length() == 0) {
+            manager.spillAll();
+            if (code[p].rd->t == Value::TYPE::INT) {
+                out.emit(string("    push ") + code[p].rd->value(), code[p]);
+            }
+            else if (manager.exist(code[p].rd->sv).length() == 0) {
                 manager.load(code[p].rd->sv, "eax");
                 out.emit(string("    push eax"), code[p]);
             }
@@ -111,7 +148,7 @@ void x86_gen_callable() {
             }
         }
         else if (code[p].op == "pushref") {
-            manager.spill("eax");
+            manager.spillAll();
             manager.store(code[p].rd->sv);
             out.emit(string("    lea eax, ") + manager.addr(code[p].rd->sv));
             out.emit(string("    push dword eax"), code[p]);
@@ -127,22 +164,32 @@ void x86_gen_callable() {
             out.emit("    call " + code[p].rd->sv, code[p]);
         }
         else if (code[p].op == "read") {
+            manager.spill("eax");
+            manager.spill("ecx");
+            manager.spill("edx");
+            manager.store(code[p].rd->sv);
             out.emit(string("    lea eax, ") + manager.addr(code[p].rd->sv));
             out.emit(string("    push dword eax"));
-            out.emit(string("    push dword __format_int"));
+            out.emit(string("    push dword __fin_int"));
             out.emit(string("    call _scanf"), code[p]);
             out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
         else if (code[p].op == "write_e") {
+            manager.spill("eax");
+            manager.spill("ecx");
+            manager.spill("edx");
             out.emit(string("    push ") + manager.locate(code[p].rd->sv));
-            out.emit(string("    push dword __format_int"));
+            out.emit(string("    push dword __fout_int"));
             out.emit(string("    call    _printf"), code[p]);
             out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
         else if (code[p].op == "write_s") {
+            manager.spill("eax");
+            manager.spill("ecx");
+            manager.spill("edx");
             asciis.emplace_back(make_pair(code[p].rd->sv, code[p].rs->value()));
             out.emit(string("    push dword __L") + code[p].rs->value());
-            out.emit(string("    push dword __format_string"));
+            out.emit(string("    push dword __fout_string"));
             out.emit(string("    call    _printf"), code[p]);
             out.emit(string("    add esp, 8\t\t;; pop stack at once."));
         }
@@ -216,34 +263,95 @@ void x86_gen_callable() {
                 }
             }
         }
+        else if (code[p].op == "*") {
+            manager.spill("eax");
+            manager.spill("edx");
+            if (code[p].rt->t == Value::TYPE::INT) {
+                out.emit(string("    mov edx, ") + code[p].rt->value());
+            }
+            else {
+                out.emit(string("    mov edx, ") + manager.locate(code[p].rt->sv));
+            }
+            if (code[p].rs->t == Value::TYPE::INT) {
+                out.emit(string("    mov eax, ") + code[p].rs->value());
+            }
+            else {
+                out.emit(string("    mov eax, ") + manager.locate(code[p].rs->sv));
+            }
+            out.emit(string("    imul edx"), code[p]);
+            manager.remap("eax", code[p].rd->sv);
+        }
+        else if (code[p].op == "/") {
+            manager.spill("eax");
+            manager.spill("edx");
+            out.emit(string("    mov edx, 0"));
+            std::string rt = code[p].rt->t == Value::TYPE::INT ? code[p].rt->value() : manager.locate(code[p].rt->sv);
+            if (code[p].rs->t == Value::TYPE::INT) {
+                out.emit(string("    mov eax, ") + code[p].rs->value());
+            }
+            else {
+                out.emit(string("    mov eax, ") + manager.locate(code[p].rs->sv));
+            }
+            out.emit("    cdq");
+            out.emit("    idiv " + rt, code[p]);
+            manager.remap("eax", code[p].rd->sv);
+        }
+        else if (code[p].op == "%") {
+            manager.spill("eax");
+            manager.spill("edx");
+            out.emit(string("    mov edx, 0"));
+            std::string rt = code[p].rt->t == Value::TYPE::INT ? code[p].rt->value() : manager.locate(code[p].rt->sv);
+            if (code[p].rs->t == Value::TYPE::INT) {
+                out.emit(string("    mov eax, ") + code[p].rs->value());
+            }
+            else {
+                out.emit(string("    mov eax, ") + manager.locate(code[p].rs->sv));
+            }
+            out.emit(string("    cdq")); // Convert double-word to quad-word
+            out.emit(string("    idiv ") + rt, code[p]);
+            manager.remap("edx", code[p].rd->sv);
+        }
         else if (code[p].op == "label") {
+            manager.spillAll();
             out.emit(code[p].rd->sv + ":");
         }
         else if (code[p].op == "cmp") {
+            std::string comp;
             if (code[p].rs->t == Value::TYPE::INT && code[p].rt->t == Value::TYPE::INT ) {
                 std::string t = manager.load(code[p].rd->sv);
                 out.emit(string("    mov ") + t + ", " + code[p].rs->value());
-                out.emit(string("    cmp ") + t + ", " + code[p].rt->value());
                 manager.release(t, true);
+                comp = string("    cmp ") + t + ", " + code[p].rt->value();
             }
             else if (code[p].rs->t == Value::TYPE::INT) {
-                out.emit(string("    cmp ") + code[p].rs->value() + ", " + manager.locate(code[p].rt->sv));
+                comp = string("    cmp ") + code[p].rs->value() + ", " + manager.locate(code[p].rt->sv);
             }
             else if (code[p].rt->t == Value::TYPE::INT) {
-                out.emit(string("    cmp ") + manager.locate(code[p].rs->sv) + ", " + code[p].rt->value());
+                comp = string("    cmp ") + manager.locate(code[p].rs->sv) + ", " + code[p].rt->value();
             }
             else {
                 if (manager.exist(code[p].rs->sv).length() == 0 && manager.exist(code[p].rt->sv).length() == 0) {
                     manager.load(code[p].rs->sv);
                 }
-                out.emit("    cmp " + manager.locate(code[p].rs->sv) + ", " + manager.locate(code[p].rt->sv));
+                comp = string("    cmp ") + manager.locate(code[p].rs->sv) + ", " + manager.locate(code[p].rt->sv);
             }
+            manager.spillAll();
+            out.emit(comp, code[p]);
         }
         else if (code[p].op == "goto") {
             out.emit(string("    ") + code[p].rd->sv + " __L" + code[p].rs->value(), code[p]);
         }
+        else if (code[p].op == "forbegin") {
+            std::string iter = manager.load(code[p].rd->sv);
+            if (code[p].rs->t == Value::TYPE::INT) {
+                out.emit(string("    mov ") + iter + ", " + code[p].rs->value(), code[p]);
+            }
+            else {
+                out.emit(string("    mov ") + iter + ", " + manager.locate(code[p].rs->sv), code[p]);
+            }
+        }
         else if (code[p].op == "forend") {
-            manager.store(code[p].rt->sv);
+            manager.spillAll();
             out.emit(string("    ") + code[p].rd->sv + " __L" + code[p].rs->value(), code[p]);
         }
         else if (code[p].op == "switch") {
@@ -256,12 +364,14 @@ void x86_gen_callable() {
                 cond = manager.load(code[p].rd->sv);
             }
             while(code[++p].op == "case") {
+                manager.spillAll();
                 out.emit("    cmp " + cond + ", " + code[p].rd->value());
                 out.emit("    je __L" + code[p].rs->value());
             }
             p = p - 1;
         }
         else if (code[p].op == "endswitch") {
+            manager.spillAll();
             out.emit("__L" + code[p].rd->value() + ":");
         }
         else {
@@ -272,6 +382,7 @@ void x86_gen_callable() {
     }
     manager.dump();
     manager.release("eax", true);
+    manager.spillAll();
     out.emit("    leave");
     out.emit("    ret", code[p++]);
     runtime.detag();
@@ -289,19 +400,22 @@ void pl0_x86_gen(std::string file, std::vector<TAC> & tac) {
     out.emit(string("    extern _scanf"));
     out.emit(string("    extern _printf"));
     out.emit(string(""));
-    out.emit(string("section .data"));
-    out.emit(string("    __format_int:       db      \"%d\", 0x0"));
-    out.emit(string("    __format_char:      db      \"%c\", 0x0"));
-    out.emit(string("    __format_string:    db      \"%s\", 0x0"));
-    out.emit(string(""));
     out.emit(string("section .text"));
     code = tac; p = 1;
     x86_gen_callable();
     // dump all constant ascii string.
     out.emit(string(""));
     out.emit(string("section .data"));
+    out.emit(string("    __fin_int:        db      \"%d\", 0x0"));
+    out.emit(string("    __fin_char:       db      \"%c\", 0x0"));
+    out.emit(string("    __fin_string:     db      \"%s\", 0x0"));
+    out.emit(string("    __fout_int:       db      \"%d\", 0xA, 0x0"));
+    out.emit(string("    __fout_char:      db      \"%c\", 0xA, 0x0"));
+    out.emit(string("    __fout_string:    db      \"%s\", 0xA, 0x0"));
+    out.emit(string(""));
+    out.emit(string("section .data"));
     for (auto && a: asciis) {
-        out.emit(string("    __L") + a.second + ":\t\tdb\t\t\"" + a.first + "\", 0xA, 0x0");
+        out.emit(string("    __L") + a.second + ":\t\tdb\t\t\"" + a.first + "\", 0x0");
     }
 }
 

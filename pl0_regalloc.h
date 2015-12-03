@@ -20,12 +20,13 @@ protected:
     std::map<std::string, std::string> record;
 public:
     RegisterAllocator(pl0_env<LOC> &, struct IOOut &, int &);
-    virtual std::string alloc(std::string) = 0;
+    virtual std::string alloc(std::string, bool is_ref = true) = 0;
     virtual void remap(std::string, std::string) = 0;
     virtual void release(std::string, bool) = 0;
     virtual std::string load(std::string) = 0;
     virtual std::string load(std::string, std::string) = 0;
     virtual void spill(std::string) = 0;
+    virtual void spillAll() = 0;
     virtual void store(std::string) = 0;
     virtual std::string locate(std::string) = 0;
     virtual std::string addr(std::string) = 0;
@@ -54,12 +55,13 @@ public:
 class SimpleAllocator: public RegisterAllocator {
 public:
     SimpleAllocator(pl0_env<LOC> &, struct IOOut &, int &);
-    std::string alloc(std::string);
+    std::string alloc(std::string, bool is_ref = true);
     void remap(std::string, std::string);
     void release(std::string, bool);
     std::string load(std::string);
     std::string load(std::string, std::string);
     void spill(std::string);
+    void spillAll();
     void store(std::string);
     std::string locate(std::string);
     std::string addr(std::string);

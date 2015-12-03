@@ -366,35 +366,5 @@ TEST(PL0Parser, ExecutableStmt) {
     EXPECT_TRUE(res1.strict);
 }
 
-TEST(PL0Parser, Simple) {
-    auto parse_tool = ParsecT<decltype(pl0_program)>(pl0_program);
-
-    auto res1 = parse_tool(load_case("pl0_cases/simple1.pas"));
-    EXPECT_TRUE(res1.status);
-    EXPECT_TRUE(res1.strict);
-    auto res2 = parse_tool(load_case("pl0_cases/simple2.pas"));
-    EXPECT_TRUE(res2.status);
-    EXPECT_TRUE(res2.strict);
-    auto res3 = parse_tool(load_case("pl0_cases/simple3.pas"));
-    EXPECT_TRUE(res3.status);
-    EXPECT_TRUE(res3.strict);
-}
-
-TEST(PL0Parser, Function) {
-    auto parse_tool = ParsecT<decltype(pl0_program)>(pl0_program);
-
-    auto res1 = parse_tool(load_case("pl0_cases/function1.pas"));
-    EXPECT_TRUE(res1.status);
-    EXPECT_TRUE(res1.strict);
-    auto res2 = parse_tool(load_case("pl0_cases/function2.pas"));
-    EXPECT_TRUE(res2.status);
-    EXPECT_TRUE(res2.strict);
-    auto res3 = parse_tool(load_case("pl0_cases/function_swap.pas"));
-    EXPECT_TRUE(res3.status);
-    EXPECT_TRUE(res3.strict);
-    auto res4 = parse_tool(load_case("pl0_cases/function_gcd.pas"));
-    EXPECT_TRUE(res4.status);
-    EXPECT_TRUE(res4.strict);
-}
 
 

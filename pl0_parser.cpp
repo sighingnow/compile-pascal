@@ -247,11 +247,11 @@ pair<int, pl0_ast_addop *> pl0_addop_fn(input_t *text) {
     return make_pair(std::get<0>(res), new pl0_ast_addop(text->locate(), std::get<1>(res)));
 }
 
-// <乘法运算符> ::= *|/
+// <乘法运算符> ::= *|/ 扩展：添加 %
 pair<int, pl0_ast_multop *> pl0_multop_fn(input_t *text) {
-    auto res = (spaces >> (pl0_character('*') | pl0_character('/')) << spaces)(text);
+    auto res = (spaces >> (pl0_character('*') | pl0_character('/') | pl0_character('%')) << spaces)(text);
     if (verbose) {
-        cout << "parsing: Mult/Div" << endl;
+        cout << "parsing: Mult/Div/Mod" << endl;
     }
     return make_pair(std::get<0>(res), new pl0_ast_multop(text->locate(), std::get<1>(res)));
 }
