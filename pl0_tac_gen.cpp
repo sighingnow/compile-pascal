@@ -379,9 +379,10 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
         pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
     }
     else {
-        for (size_t i = 0; i < args.size(); ++i) {
-            bool is_ref = p.param_t[i].length() > 4 && p.param_t[i].substr(0, 4) == "ref_";
-            if (args[i].second != (is_ref ? p.param_t[i].substr(4): p.param_t[i])) {
+        size_t len = args.size();
+        for (size_t i = 0; i < len; ++i) {
+            bool is_ref = p.param_t[len-1-i].length() > 4 && p.param_t[len-1-i].substr(0, 4) == "ref_";
+            if (args[i].second != (is_ref ? p.param_t[len-1-i].substr(4): p.param_t[len-1-i])) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
             if (is_ref) {
@@ -614,9 +615,10 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
         pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
     }
     else {
+        size_t len = args.size();
         for (size_t i = 0; i < args.size(); ++i) {
-            bool is_ref = f.param_t[i].length() > 4 && f.param_t[i].substr(0, 4) == "ref_";
-            if (args[i].second != (is_ref ? f.param_t[i].substr(4) : f.param_t[i])) {
+            bool is_ref = f.param_t[len-1-i].length() > 4 && f.param_t[len-1-i].substr(0, 4) == "ref_";
+            if (args[i].second != (is_ref ? f.param_t[len-1-i].substr(4) : f.param_t[len-1-i])) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
             if (is_ref) {
