@@ -571,8 +571,9 @@ pair<int, pl0_ast_condtion *> pl0_condition_fn(input_t *text) {
 
 // <条件语句> ::= if<条件>then<语句> | if<条件>then<语句>else<语句>
 pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *text) {
-    auto parser = (pl0_string_literal("if") >> pl0_condition) + (pl0_string_literal("then") >> pl0_stmt)
-        + ~(pl0_string_literal("else") >> pl0_stmt);
+    auto parser = ((spaces >> pl0_string_literal("if") << spaces) >> pl0_condition)
+        + ((spaces >> pl0_string_literal("then") << spaces) >> pl0_stmt)
+        + ~((spaces >> pl0_string_literal("else") << spaces) >> pl0_stmt);
     auto res = (spaces >> parser << spaces)(text);
     if (verbose) {
         cout << "parsing: Condition Statement" << endl;
@@ -587,8 +588,8 @@ pair<int, pl0_ast_cond_stmt *> pl0_cond_stmt_fn(input_t *text) {
 
 // <情况语句> ::= case <表达式> of <情况表元素>{; <情况表元素>} end
 pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *text) {
-    auto parser = (pl0_string_literal("case") >> (spaces >> pl0_expression << spaces) << pl0_string_literal("of"))
-        + ((pl0_case_term % pl0_character(';')) << (spaces >> pl0_string_literal("end")));
+    auto parser = ((spaces >> pl0_string_literal("case") << spaces) >> (spaces >> pl0_expression << spaces) << pl0_string_literal("of"))
+        + ((pl0_case_term % pl0_character(';')) << (spaces >> pl0_string_literal("end") << spaces));
     auto res = (spaces >> parser << spaces)(text);
     if (verbose) {
         cout << "parsing: Case Statement" << endl;
@@ -598,7 +599,7 @@ pair<int, pl0_ast_case_stmt *> pl0_case_stmt_fn(input_t *text) {
 
 // <情况表元素> ::= <常量> : <语句>
 pair<int, pl0_ast_case_term *> pl0_case_term_fn(input_t *text) {
-    auto res = ((pl0_const << pl0_character(':')) + pl0_stmt)(text);
+    auto res = ((pl0_const << (spaces >> pl0_character(':') << spaces)) + pl0_stmt)(text);
     if (std::get<0>(res) == -1) {
         cout << "REPORT" << endl;
     }
@@ -610,7 +611,7 @@ pair<int, pl0_ast_case_term *> pl0_case_term_fn(input_t *text) {
 
 // <for循环语句> ::= for <标识符> := <表达式> (downto | to) <表达式> do <语句> // 步长为1
 pair<int, pl0_ast_for_stmt *> pl0_for_stmt_fn(input_t *text) {
-    auto parser = ((pl0_string_literal("for") >> pl0_identify) + (pl0_string_literal(":=") >> pl0_expression))
+    auto parser = (((spaces >> pl0_string_literal("for") << spaces) >> pl0_identify) + ((spaces >> pl0_string_literal(":=") << spaces) >> pl0_expression))
         + (spaces >> (pl0_string_literal("downto") | pl0_string_literal("to")) << spaces)
         + (pl0_expression + (pl0_string_literal("do") >> pl0_stmt));
     auto res = (spaces >> parser << spaces)(text);
@@ -639,7 +640,9 @@ pair<int, pl0_ast_call_proc *> pl0_call_proc_fn(input_t *text) {
 
 // <复合语句> ::= begin<语句>{; <语句>}end
 pair<int, pl0_ast_compound_stmt *> pl0_compound_stmt_fn(input_t *text) {
-    auto parser = pl0_string_literal("begin") >> (pl0_stmt % (spaces >> pl0_character(';') << spaces)) << spaces << pl0_string_literal("end");
+    auto parser = (spaces >> pl0_string_literal("begin") << spaces)
+        >> (pl0_stmt % (spaces >> pl0_character(';') << spaces))
+        << (spaces >> pl0_string_literal("end") << spaces);
     auto res = (spaces >> parser << spaces)(text);
     if (verbose) {
         cout << "parsing: Compound Statement" << endl;
@@ -649,7 +652,7 @@ pair<int, pl0_ast_compound_stmt *> pl0_compound_stmt_fn(input_t *text) {
 
 // <读语句> ::= read'('<标识符>{,<标识符>}')'
 pair<int, pl0_ast_read_stmt *> pl0_read_stmt_fn(input_t *text) {
-    auto parser = pl0_string_literal("read") >> spaces >> pl0_character('(') >> (pl0_identify % pl0_character(',')) << pl0_character(')');
+    auto parser = (spaces >> pl0_string_literal("read")) >> spaces >> pl0_character('(') >> (pl0_identify % pl0_character(',')) << pl0_character(')');
     auto res = (spaces >> parser << spaces)(text);
     if (verbose) {
         cout << "parsing: Read Statement" << endl;

@@ -73,7 +73,6 @@ ABOUT x86 Code Generate
 1. = target source
 2. []= array index source
 3. =[] target array index
-4. setret value
 5. loadret
 6. push value
 7. pushref value
@@ -81,15 +80,15 @@ ABOUT x86 Code Generate
 9. callfunc function
 10. callproc procedure
 11. read target
-12. write_s string
+12. write_s string label
 13. write_e value
 14. + c a b
 15. - c a b
 16. * c a b
 17. / c a b
 18. % c a b
-19. label label_no
-20. cmp a b
+19. cmp a b
+20. label label_no
 21. goto label_no
 
 

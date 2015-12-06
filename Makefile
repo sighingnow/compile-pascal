@@ -78,7 +78,8 @@ clean:
 	@./$@
 	@rm -f $@
 
-allpas		:= test_for.exec \
+allpas		:= test_null_stmt.exec \
+			test_for.exec \
 			test_recursive.exec \
 			test_fib1.exec \
 			test_fib2.exec \
@@ -94,7 +95,7 @@ test-pas: $(allpas)
 .SECONDARY: a.asm
 
 compile: dist
-	pl0c.out pl0_cases/test_fib1.pas > a.asm
+	pl0c.out pl0_cases/test_null_stmt.pas > a.asm
 	@make asm
 
 asm: a.asm

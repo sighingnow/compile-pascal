@@ -177,7 +177,7 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
             irb.emit("function", scope_name());
             functb.push(func(scope_name(), f.first->type->type, functype)); // update symbol table
             proctb.tag(); functb.tag();
-            irb.emit("allocret", scope_name());
+            irb.emit("def", new Value(scope_name()), new Value("integer"), new Value(-1));
             pl0_tac_prog(f.second);
             irb.emit("loadret", scope_name());
             irb.emit("endfunc", scope_name());
@@ -255,10 +255,11 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
     Value *val = pl0_tac_expr(stmt->val).first;
     if (stmt->idx == nullptr && functb.depth(stmt->id->id) > vartb.depth(stmt->id->id)) {
         // set function's retval
-        if (functb.find(stmt->id->id, true) == false) {
+        func f;
+        if (functb.find(stmt->id->id, true, f) == false) {
             pl0_ast_error(stmt->id->loc, string("use of undeclared function ") + "\"" + stmt->id->id + "\"");
         }
-        irb.emit("setret", val);
+        irb.emit("=", new Value(f.name), val);
     }
     else {
         // just simple assign.
@@ -290,9 +291,9 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     
     auto lhs = pl0_tac_expr(stmt->cond->lhs);
     auto rhs = pl0_tac_expr(stmt->cond->rhs);
-    if (lhs.second != rhs.second) {
-        pl0_ast_error(stmt->cond->loc, "compare two expressions with different types.");
-    }
+    // if (lhs.second != rhs.second) {
+    //     pl0_ast_error(stmt->cond->loc, "compare two expressions with different types.");
+    // }
     irb.emit("cmp", new Value(thenlabel), lhs.first, rhs.first);
 
     if (stmt->else_block == nullptr) {
@@ -486,9 +487,9 @@ pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
         for (size_t i = 1; i < expr->terms.size(); ++i) {
             if (needtmp) { ans = new Value(irb.maketmp()); }
             auto element = pl0_tac_term(expr->terms[i].second);
-            if (element.second != head.second) {
-                pl0_ast_error(expr->terms[i].second->loc, "do +/- operation on two terms with different types.");
-            }
+            // if (element.second != head.second) {
+            //     pl0_ast_error(expr->terms[i].second->loc, "do +/- operation on two terms with different types.");
+            // }
             irb.emit(string(1, expr->terms[i].first->op), ans, needtmp ? prev : ans, element.first);
             needtmp = false; // no more temporary variable.
         }
@@ -505,9 +506,9 @@ pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
         for (size_t i = 1; i < term->factors.size(); ++i) {
             if (needtmp) { ans = new Value(irb.maketmp()); }
             auto element = pl0_tac_factor(term->factors[i].second);
-            if (element.second != head.second) {
-                pl0_ast_error(term->factors[i].second->loc, "do *// operation on two factors with different types.");
-            }
+            // if (element.second != head.second) {
+            //     pl0_ast_error(term->factors[i].second->loc, "do *// operation on two factors with different types.");
+            // }
             irb.emit(string(1, term->factors[i].first->op), ans, needtmp ? prev : ans, element.first);
             needtmp = false; // no more temporary variable.
         }

@@ -109,19 +109,6 @@ static void pl0_x86_gen_common(TAC & c) {
         }
         out.emit(string("    mov ") + rd + ", " + rs, c);
     }
-    else if (c.op == "setret") {
-        std::string ret;
-        if (c.rd->t == Value::TYPE::INT) {
-            ret = c.rd->value();
-        }
-        else {
-            if (manager.exist(c.rd->sv).length() == 0) {
-                manager.load(c.rd->sv);
-            }
-            ret = manager.locate(c.rd->sv);
-        }
-        out.emit(string("    mov dword [ebp-4], ") + ret, c);
-    }
     else if (c.op == "loadret") {
         manager.spillAll();
         out.emit("    mov eax, dword [ebp-4]", c);
@@ -350,27 +337,6 @@ static void pl0_x86_gen_common(TAC & c) {
         }
         dist = old.back(); old.pop_back();
         out.emit(string("    ") + c.rd->sv + " __L" + c.rs->value(), c);
-    }
-    else if (c.op == "forbegin") {
-        std::string iter = manager.load(c.rs->sv);
-        if (c.rt->t == Value::TYPE::INT) {
-            out.emit(string("    mov ") + iter + ", " + c.rt->value(), c);
-        }
-        else {
-            out.emit(string("    mov ") + iter + ", " + manager.locate(c.rt->sv), c);
-        }
-        manager.spillAll();
-    }
-    else if (c.op == "forend") {
-        manager.spillAll();
-        out.emit(string("    ") + c.rd->sv + " __L" + c.rs->value(), c);
-    }
-    else if (c.op == "switch") {
-        manager.load(c.rd->sv);
-    }
-    else if (c.op == "case") {
-        out.emit("    cmp " + manager.locate(c.rs->sv) + ", " + c.rt->value());
-        out.emit("    je __L" + c.rd->value());
     }
     else {
         out.emit("UNIMPLEMENT", c);
