@@ -31,7 +31,12 @@ else
 	CXXFLAGS						+= -O1 -DNDEBUG
 endif
 
-UTILS								:= pl0_parser.o pl0_ast.o pl0_tac_gen.o pl0_x86.o pl0_regalloc.o
+UTILS								:= pl0_parser.o \
+									pl0_ast.o \
+									pl0_tac_gen.o \
+									pl0_opt.o \
+									pl0_allocator.o \
+									pl0_x86.o
 
 ## prevent make deleting the intermedia object file.
 .SECONDARY: $(UTILS)
@@ -88,8 +93,8 @@ test-pas: $(allpas)
 
 .SECONDARY: a.asm
 
-compile:
-	pl0c.out pl0_cases/test_ref2.pas > a.asm
+compile: dist
+	pl0c.out pl0_cases/test_fib1.pas > a.asm
 	@make asm
 
 asm: a.asm

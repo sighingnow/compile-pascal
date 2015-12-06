@@ -1,4 +1,8 @@
-#include <pl0_regalloc.h>
+#include <vector>
+#include <iostream>
+#include "pl0_ast.hpp"
+#include "pl0_x86.h"
+using namespace std;
 
 RegisterAllocator::RegisterAllocator(pl0_env<LOC> & env, struct IOOut & out, int & dist): env(env), out(out), dist(dist) {}
 
@@ -186,4 +190,5 @@ std::string SimpleAllocator::addr(std::string name) {
         }
     }
 }
+
 

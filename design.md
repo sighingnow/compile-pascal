@@ -25,7 +25,6 @@ ERROR Recovery (skip while invalid)
 
     skip all characters until get a valid identifier.
 
-2. 
 
 ERROR When Semantic Analysing (Type Checking):
 ----------------------------------------------
@@ -64,4 +63,38 @@ ABOUT x86 Code Generate
 
 对于for循环的汇编代码生成：在循环开始处和循环结束处都将循环变量加载至 eax 寄存器中。（认为循环变量是活跃的）
 
-调用C库函数scanf和printf之前需要保存eax寄存器。（eax会被用作这两个函数的返回值寄存器）
+调用C库函数scanf和printf之前需要保存eax, ebx, ecx寄存器。（eax会被用作这两个函数的返回值寄存器）
+**遵守x86 ABI的调用约定**
+
+对于分支，如果一个分支内有临时变量溢出到栈上，另一个分支内没有，栈的平衡就会被破坏。一个分支内产生的临时变量无法到达分支之后的基本块中。
+
+四元式：
+
+1. = target source
+2. []= array index source
+3. =[] target array index
+4. setret value
+5. loadret
+6. push value
+7. pushref value
+8. pop
+9. callfunc function
+10. callproc procedure
+11. read target
+12. write_s string
+13. write_e value
+14. + c a b
+15. - c a b
+16. * c a b
+17. / c a b
+18. % c a b
+19. label label_no
+20. cmp a b
+21. goto label_no
+
+
+
+优化：
+
+1. 划分基本块：在四元式中，每个基本块对应一个label，用label编号作为基本块的编号。对于函数头声明，该块编号为 0
+

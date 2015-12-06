@@ -32,7 +32,6 @@ void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt);
 void pl0_tac_write_stmt(pl0_ast_write_stmt const *stmt);
 void pl0_tac_null_stmt(pl0_ast_null_stmt const *stmt);
 pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr);
-void pl0_tac_condition(pl0_ast_condtion const *cond);
 pair<Value *, string> pl0_tac_term(pl0_ast_term const *term);
 pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor);
 pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt);
@@ -91,6 +90,7 @@ void pl0_tac_prog(pl0_ast_prog const *prog) {
             default: cout << "ERROR" << endl;
         }
     }
+    irb.emitlabel(irb.makelabel());
     pl0_tac_compound_stmt(prog->stmts);
     // pop stack.
     valtb.detag(); vartb.detag();
@@ -175,7 +175,7 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
             scope.emplace_back(fid); // update global scope.
             vector<string> functype = pl0_tac_function_header(f.first);
             irb.emit("function", scope_name());
-            functb.push(func(scope_name(), f.first->type->type, functype));
+            functb.push(func(scope_name(), f.first->type->type, functype)); // update symbol table
             proctb.tag(); functb.tag();
             irb.emit("allocret", scope_name());
             pl0_tac_prog(f.second);
@@ -285,10 +285,22 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
 
 void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     cout << __func__;
-    pl0_tac_condition(stmt->cond);
-    int thenlabel = irb.makelabel();
-    int elselabel = irb.makelabel();
-    int endlabel = irb.makelabel();
+
+    int thenlabel = irb.makelabel(), elselabel, endlabel = irb.makelabel();
+    
+    auto lhs = pl0_tac_expr(stmt->cond->lhs);
+    auto rhs = pl0_tac_expr(stmt->cond->rhs);
+    if (lhs.second != rhs.second) {
+        pl0_ast_error(stmt->cond->loc, "compare two expressions with different types.");
+    }
+    irb.emit("cmp", new Value(thenlabel), lhs.first, rhs.first);
+
+    if (stmt->else_block == nullptr) {
+        elselabel = endlabel;
+    }
+    else {
+        elselabel = irb.makelabel();
+    }
     // reference: http://unixwiz.net/techtips/x86-jumps.html
     // +--------+------------------------------+-------------+--------------------+
     // |Instr   | Description                  | signed-ness | Flags              |
@@ -326,9 +338,11 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     irb.emitlabel(thenlabel);
     pl0_tac_stmt(stmt->then_block);
     irb.emit("goto", new Value("jmp"), new Value(endlabel));
-    irb.emitlabel(elselabel);
-    pl0_tac_stmt(stmt->else_block);
-    irb.emit("goto", new Value("jmp"), new Value(endlabel));
+    if (stmt->else_block != nullptr) {
+        irb.emitlabel(elselabel);
+        pl0_tac_stmt(stmt->else_block);
+        irb.emit("goto", new Value("jmp"), new Value(endlabel));
+    }
     irb.emitlabel(endlabel);
 }
 
@@ -336,19 +350,18 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     cout << __func__;
     Value *val = pl0_tac_expr(stmt->expr).first;
     int t, endlabel = irb.makelabel();
-    irb.emit("switch", val, new Value(irb.maketmp()), new Value(endlabel));
     std::vector<int> labels;
     for (auto item: stmt->terms) {
-        t = irb.makelabel();
-        irb.emit("case", new Value(item->constv->val), new Value(t));
-        labels.emplace_back(t);
+        labels.emplace_back(irb.makelabel());
     }
-    for (size_t i = 0; i < labels.size(); ++i) {
-        irb.emitlabel(labels[i]);
-        pl0_tac_stmt(stmt->terms[i]->stmt);
+    labels.emplace_back(endlabel);
+    for (size_t i = 0; i < stmt->terms.size(); ++i) {
+        irb.emit("cmp", new Value(labels[i+1]), val, new Value(stmt->terms[i]->constv->val));
         irb.emit("goto", new Value("jmp"), new Value(endlabel));
+        irb.emitlabel(labels[i]);        
+        pl0_tac_stmt(stmt->terms[i]->stmt);
     }
-    irb.emit("endswitch", new Value(endlabel));
+    irb.emitlabel(endlabel);
 }
 
 void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
@@ -391,6 +404,7 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     cout << __func__;
     // code structure: compare -> execute -> compare again
     int beginlabel = irb.makelabel();
+    int innerlabel = irb.makelabel();
     int endlabel = irb.makelabel();
     // validate loop iterator.
     if (vartb.find(stmt->iter->id, true) == false) {
@@ -400,22 +414,24 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     if (s.second != "integer" && s.second != "char") {
         pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
     }
-    irb.emit("forbegin", new Value(stmt->iter->id), s.first);
+    irb.emit("=", new Value(stmt->iter->id), s.first);
+    irb.emit("goto", new Value("jmp"), new Value(beginlabel));
     irb.emitlabel(beginlabel);
     pair<Value *, string> t = pl0_tac_expr(stmt->end);
     if (t.second != "integer" && t.second != "char") {
         pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
     }
-    irb.emit("cmp", new Value(irb.maketmp()), new Value(stmt->iter->id), t.first);
+    irb.emit("cmp", new Value(innerlabel), new Value(stmt->iter->id), t.first);
     if (stmt->step->val == 1) {
         irb.emit("goto", new Value("jg"), new Value(endlabel));
     }
     else {
         irb.emit("goto", new Value("jl"), new Value(endlabel));
     }
+    irb.emitlabel(innerlabel); // label for inner executable block.
     pl0_tac_stmt(stmt->stmt);
     irb.emit("+", new Value(stmt->iter->id), new Value(stmt->iter->id), new Value(stmt->step->val));
-    irb.emit("forend", new Value("jmp"), new Value(beginlabel));
+    irb.emit("goto", new Value("jmp"), new Value(beginlabel));
     irb.emitlabel(endlabel);
 }
 
@@ -478,17 +494,6 @@ pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
         }
     }
     return make_pair(ans, head.second);
-}
-
-void pl0_tac_condition(pl0_ast_condtion const *cond) {
-    cout << __func__;
-    auto lhs = pl0_tac_expr(cond->lhs);
-    auto rhs = pl0_tac_expr(cond->rhs);
-    cout << ";; compare type: " << lhs.second <<  "  "  << rhs.second << endl;
-    if (lhs.second != rhs.second) {
-        pl0_ast_error(cond->loc, "compare two expressions with different types.");
-    }
-    irb.emit("cmp", new Value(irb.maketmp()), lhs.first, rhs.first);
 }
 
 pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {

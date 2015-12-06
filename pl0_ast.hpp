@@ -332,19 +332,22 @@ struct Value {
     Value(int v): t(TYPE::INT), iv(v) {};
     Value(std::string v): t(TYPE::STR), sv(v) {};
     std::string str();
-    bool operator == (Value v) {
-        bool res = this->t == v.t;
+    bool operator == (Value const & v) const {
+        bool res = t == v.t;
         if (res) {
-            if (this->t == TYPE::INT) {
-                res = res && this->iv == v.iv;
+            if (t == TYPE::INT) {
+                res = res && iv == v.iv;
             }
             else {
-                res = res && this->sv == v.sv;
+                res = res && sv == v.sv;
             }
         }
         return res;
     }
-    std::string value() {
+    bool operator < (Value const & other) const {
+        return value() < other.value();
+    }
+    std::string value() const {
         if (this->t == TYPE::INT) {
             return std::to_string(this->iv);
         }
@@ -368,7 +371,7 @@ public:
     std::vector<struct TAC> irs;
 public:
     IRBuilder() {}
-    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value("__L" + std::to_string(label)))); }
+    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value(label))); }
     void emit(std::string op, Value *rd, Value *rs = nullptr, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, rs, rt)); }
     void emit(TAC c) { irs.emplace_back(c); }
     void emit(std::string op, std::string rd) { irs.emplace_back(TAC(op, new Value(rd))); }
@@ -478,7 +481,7 @@ public:
     int depth();
     int depth(std::string const &);
     void dump() {
-        cout << ";; -----------------dump symbol table-------------------" << endl;
+        cout << ";; -----------------  Symbol Table  -------------------" << endl;
         for (auto && t: tb) {
             cout << ";; " << t.str() << endl;
         }

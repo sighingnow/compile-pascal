@@ -1,11 +1,18 @@
+#ifndef __PL0_X86_H__
+#define __PL0_X86_H__
+
 #include <map>
 #include <string>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 #include <ctime>
+#include "pl0_opt.h"
 #include "pl0_ast.hpp"
 
 using namespace std;
+
+void pl0_x86_gen(std::string, std::vector<BasicBlock> &);
 
 class RegisterAllocator
 {
@@ -67,7 +74,7 @@ public:
     std::string addr(std::string);
 };
 
-
+#endif /* __PL0_X86_H__ */
 
 
 

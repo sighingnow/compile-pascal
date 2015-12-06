@@ -123,13 +123,13 @@ std::string TAC::str() {
 }
 
 int IRBuilder::makelabel() {
-    return this->label++;
+    return ++this->label;
 }
 string IRBuilder::maketmp() {
-    return "~t" + std::to_string(temp++);
+    return "~t" + std::to_string(++temp);
 }
 string IRBuilder::makeret() {
-    return "~ret" + std::to_string(ret++);
+    return "~ret" + std::to_string(++ret);
 }
 void IRBuilder::dump() {
     for (auto ir: irs) {
