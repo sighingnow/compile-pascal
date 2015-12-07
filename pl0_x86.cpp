@@ -116,36 +116,38 @@ static void pl0_x86_gen_common(TAC & c) {
     else if (c.op == "exit") {
         out.emit(string("    mov eax, ") + c.rd->value(), c);
     }
-    else if (c.op == "push") {
+    else if (c.op == "call") {
         manager.spillAll();
-        if (c.rd->t == Value::TYPE::INT) {
-            out.emit(string("    push ") + c.rd->value(), c);
+        for (auto && a: c.args) { // push
+            if (a.second) { // call by reference
+                manager.store(a.first->sv);
+                out.emit(string("    lea eax, ") + manager.addr(a.first->sv));
+                out.emit(string("    push dword eax"));
+            }
+            else { // call by value.
+                if (a.first->t == Value::TYPE::INT) {
+                    out.emit(string("    push ") + a.first->value());
+                }
+                else if (manager.exist(a.first->sv).length() == 0) {
+                    manager.load(a.first->sv, "eax");
+                    out.emit(string("    push eax"));
+                }
+                else {
+                    out.emit(string("    push ") + manager.locate(a.first->sv));
+                }
+            }
         }
-        else if (manager.exist(c.rd->sv).length() == 0) {
-            manager.load(c.rd->sv, "eax");
-            out.emit(string("    push eax"), c);
-        }
-        else {
-            out.emit(string("    push ") + manager.locate(c.rd->sv), c);
-        }
-    }
-    else if (c.op == "pushref") {
-        manager.spillAll();
-        manager.store(c.rd->sv);
-        out.emit(string("    lea eax, ") + manager.addr(c.rd->sv));
-        out.emit(string("    push dword eax"), c);
-    }
-    else if (c.op == "pop") {
-        out.emit(string("    add esp, 4"), c);
-    }
-    else if (c.op == "callfunc") {
-        manager.spillAll();
         out.emit("    call " + c.rd->sv, c);
-        manager.remap("eax", c.rs->sv);
-    }
-    else if (c.op == "callproc") {
-        manager.spillAll();
-        out.emit("    call " + c.rd->sv, c);
+        if (c.rt) { // for function call, load return value.
+            manager.remap("eax", c.rt->sv);
+        }
+        if (c.args.size() > 0) { // pop
+            out.emit("    add esp, " + std::to_string(c.args.size() * 4));
+        }
+        if (old.back() - dist > 0) {
+            out.emit(string("    add esp, ") + std::to_string(old.back() - dist));
+        }
+        dist = old.back(); old.pop_back();
     }
     else if (c.op == "read") {
         manager.spill("eax");

@@ -118,8 +118,18 @@ std::string Value::str() {
     }
 }
 
-std::string TAC::str() {
-    return op + " " + (rd ? rd->str() : "") + " " + (rs ? rs->str() : "") + " " + (rt ? rt->str() : "");
+std::string TAC::str() const {
+    if (op == "call") {
+        std::string s = "call " + rd->sv + " (";
+        for (auto && a: args) {
+            s = s + a.first->str() + (a.second ? " ref, ": ", ");
+        }
+        s = s + ") " + (rt ? (" -> " + rt->sv) : "");
+        return s;
+    }
+    else{
+        return op + " " + (rd ? rd->str() : "") + " " + (rs ? rs->str() : "") + " " + (rt ? rt->str() : "");
+    }
 }
 
 int IRBuilder::makelabel() {

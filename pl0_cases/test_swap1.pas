@@ -17,13 +17,13 @@ begin
     b := y;
     swap(a, b);
     if a = y then
-        write("array operation right.")
+        write("swap 1 right.")
     else
-        write("array operation failed.", a)
+        write("swap 1 failed.", a)
     ;
     if b = x then
-        write("array operation right.")
+        write("swap 2 right.")
     else
-        write("array operation failed.", b)
+        write("swap 2 failed.", b)
     ;
 end.

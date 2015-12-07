@@ -15,9 +15,9 @@ begin
 	a := 0;
 	p2(a);
 	if a = 2 then
-        write("reference argument right.")
+        write("reference argument 2 success.")
     else
-        write("reference argument failed.", a)
+        write("reference argument 2 failed.", a)
     ;
 end.
 

@@ -360,8 +360,10 @@ struct Value {
 struct TAC {
     std::string op;
     Value *rd, *rs, *rt;
+    std::vector<pair<Value *, bool>> args;
+    TAC(std::string op, Value *rd, vector<pair<Value *, bool>> & args, Value *rt = nullptr): op(op), rd(rd), rs(nullptr), rt(rt), args(args) {}
     TAC(std::string op, Value *rd, Value *rs = nullptr, Value *rt = nullptr): op(op), rd(rd), rs(rs), rt(rt) {}
-    std::string str();
+    std::string str() const;
 };
 
 /* IR builder. */
@@ -376,6 +378,7 @@ public:
     void emit(TAC c) { irs.emplace_back(c); }
     void emit(std::string op, std::string rd) { irs.emplace_back(TAC(op, new Value(rd))); }
     void emit(std::string op, std::string rd, std::string rs) { irs.emplace_back(TAC(op, new Value(rd), new Value(rs))); }
+    void emit(std::string op, Value *rd, vector<pair<Value *, bool>> & args, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, args, rt)); }
     int makelabel();
     string maketmp();
     string makeret();

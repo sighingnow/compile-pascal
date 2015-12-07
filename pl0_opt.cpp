@@ -52,8 +52,8 @@ void BasicBlock::buildDAG() {
     std::map<Value, int> record;
     std::vector<DAGNode> G;
     int rd, rs, rt;
-    for (p = 1; code[p].op != "goto" && code[p].op != "loadret" && code[p].op != "endproc"
-            && code[p].op != "forbegin" && code[p].op != "forend"; ++p) {
+    for (p = 1; code[p].op != "goto" && code[p].op != "call"
+            && code[p].op != "loadret" && code[p].op != "endproc"; ++p) {
         if (code[p].op == "*" || code[p].op == "/" || code[p].op == "%"
                 || code[p].op == "+" || code[p].op == "-"
                 || code[p].op == "cmp"
@@ -110,7 +110,9 @@ void BasicBlock::buildDAG() {
             }
             record.emplace(*(code[p].rd), rd);
         }
-        // else if (code[p].op == "setret" || code[p].op == "callfunc")
+        else if (code[p].op == "write_s" || code[p].op == "write_e") {
+
+        }
     }
 }
 
@@ -123,10 +125,10 @@ static int pl0_block_helper(std::vector<TAC> & code, std::vector<BasicBlock> & b
         std::map<int, std::vector<int>> & pres, std::map<int, std::vector<int>> & sufs)
 {
     BasicBlock header(0, false);
-    while (code[p].op == "param" || code[p].op == "paramref"
-            || code[p].op == "function" || code[p].op == "procedure") {
+    while (code[p].op == "param" || code[p].op == "paramref") {
         header.push(code[p++]);
     }
+    header.push(code[p++]); // function or procedure.
     while (code[p].op == "def" || code[p].op == "allocret") {
         header.push(code[p++]);
     }
@@ -142,20 +144,37 @@ static int pl0_block_helper(std::vector<TAC> & code, std::vector<BasicBlock> & b
     while (code[p].op != "endproc" && code[p].op != "endfunc") {
         BasicBlock body(code[p].rd->iv, true);
         body.push(code[p++]);
-        while (code[p].op != "label" && code[p].op != "endproc" && code[p].op != "endfunc") {
-            if (code[p].op == "goto" || code[p].op == "forend") {
-                sufs[body.no].emplace_back(code[p].rs->iv);
-                pres[code[p].rs->iv].emplace_back(body.no);
-            }
-            if (code[p].op == "cmp" || code[p].op == "forbegin") {
+        while (code[p].op != "goto" && code[p].op != "call"
+                && code[p].op != "endproc" && code[p].op != "endfunc") {
+            if (code[p].op == "cmp") {
                 sufs[body.no].emplace_back(code[p].rd->iv);
                 pres[code[p].rd->iv].emplace_back(body.no);
             }
+            if (code[p].op == "def") {
+                // add temporary variable to symbol table.
+                bbs[hidx].push(code[p++]);
+            }
+            else {
+                body.push(code[p++]);
+            }
+        }
+        if (code[p].op == "goto") {
+            // goto label
+            sufs[body.no].emplace_back(code[p].rs->iv);
+            pres[code[p].rs->iv].emplace_back(body.no);
             body.push(code[p++]);
         }
-        if (code[p].op != "label") {
+        else if (code[p].op == "call") {
+            // call ... -> ...
+            // label: 
+            body.push(code[p++]);
+            sufs[body.no].emplace_back(code[p].rd->iv);
+            pres[code[p].rd->iv].emplace_back(body.no);
+        }
+        else {
             body.push(code[p]);
         }
+
         bbs.emplace_back(body);
     }
     bbs[hidx].setEnd(bbs.back().no);

@@ -176,10 +176,10 @@ std::string SimpleAllocator::addr(std::string name) {
     }
     else {
         this->spill("eax");
-        out.emit("    mov eax, dword [esp]");
+        out.emit("    mov eax, dword [ebp]");
         d = d - 1;
         while(d--) {
-            out.emit("    lea eax, [eax]");
+            out.emit("    mov eax, dword [eax]");
         }
         if (loc.is_ref) {
             out.emit("    mov eax, [eax" + loc.offset + ']');

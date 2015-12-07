@@ -349,18 +349,26 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
 
 void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     cout << __func__;
-    Value *val = pl0_tac_expr(stmt->expr).first;
-    int t, endlabel = irb.makelabel();
+    auto case_cond = pl0_tac_expr(stmt->expr);
+    // add case condition value to symbol table.
+    if (case_cond.first->t == Value::TYPE::STR && case_cond.first->sv[0] == '~') {
+        irb.emit("def", case_cond.first, new Value(case_cond.second), new Value(-1));
+    }
+    int endlabel = irb.makelabel();
     std::vector<int> labels;
     for (auto item: stmt->terms) {
         labels.emplace_back(irb.makelabel());
     }
     labels.emplace_back(endlabel);
+    irb.emit("goto", new Value("jmp"), new Value(labels[0]));
     for (size_t i = 0; i < stmt->terms.size(); ++i) {
-        irb.emit("cmp", new Value(labels[i+1]), val, new Value(stmt->terms[i]->constv->val));
-        irb.emit("goto", new Value("jmp"), new Value(endlabel));
-        irb.emitlabel(labels[i]);        
+        int t = irb.makelabel();
+        irb.emitlabel(labels[i]);
+        irb.emit("cmp", new Value(t), case_cond.first, new Value(stmt->terms[i]->constv->val));
+        irb.emit("goto", new Value("jne"), new Value(labels[i+1]));
+        irb.emitlabel(t);
         pl0_tac_stmt(stmt->terms[i]->stmt);
+        irb.emit("goto", new Value("jmp"), new Value(endlabel));
     }
     irb.emitlabel(endlabel);
 }
@@ -375,6 +383,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
     }
     proc p;
     proctb.find(stmt->id->id, true, p);
+    std::vector<std::pair<Value *, bool>> pushes; // <Value * val, bool is_ref>
     if (args.size() != p.param_t.size()) {
         pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
     }
@@ -389,17 +398,15 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
                 if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
-                irb.emit("pushref", args[i].first);
+                pushes.emplace_back(make_pair(args[i].first, true));
             }
             else {
-                irb.emit("push", args[i].first);
+                pushes.emplace_back(make_pair(args[i].first, false));
             }
         }
     }
-    irb.emit("callproc", p.name);
-    for (auto arg: args) {
-        irb.emit("pop", arg.first);
-    }
+    irb.emit("call", new Value(p.name), pushes);
+    irb.emitlabel(irb.makelabel());
 }
 
 void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
@@ -423,6 +430,10 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     if (t.second != "integer" && t.second != "char") {
         pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
     }
+    // add end value to symbol table.
+    if (t.first->t == Value::TYPE::STR && t.first->sv[0] == '~') {
+        irb.emit("def", t.first, new Value(t.second), new Value(-1));
+    }
     irb.emit("cmp", new Value(innerlabel), new Value(stmt->iter->id), t.first);
     if (stmt->step->val == 1) {
         irb.emit("goto", new Value("jg"), new Value(endlabel));
@@ -435,6 +446,7 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     irb.emit("+", new Value(stmt->iter->id), new Value(stmt->iter->id), new Value(stmt->step->val));
     irb.emit("goto", new Value("jmp"), new Value(beginlabel));
     irb.emitlabel(endlabel);
+    irb.emit("=", new Value(stmt->iter->id), t.first);
 }
 
 void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt) {
@@ -605,40 +617,36 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
     if (stmt->args) {
         for (auto argexpr: stmt->args->args) {
             auto arg = pl0_tac_expr(argexpr->arg);
-
             args.emplace(args.begin(), arg);
         }
     }
-    func f;
-    functb.find(fid, true, f);
-    if (args.size() != f.param_t.size()) {
+    func fn;
+    functb.find(fid, true, fn);
+    std::vector<std::pair<Value *, bool>> pushes; // <Value * val, bool is_ref>
+    if (args.size() != fn.param_t.size()) {
         pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
     }
     else {
         size_t len = args.size();
         for (size_t i = 0; i < args.size(); ++i) {
-            bool is_ref = f.param_t[len-1-i].length() > 4 && f.param_t[len-1-i].substr(0, 4) == "ref_";
-            if (args[i].second != (is_ref ? f.param_t[len-1-i].substr(4) : f.param_t[len-1-i])) {
+            bool is_ref = fn.param_t[len-1-i].length() > 4 && fn.param_t[len-1-i].substr(0, 4) == "ref_";
+            if (args[i].second != (is_ref ? fn.param_t[len-1-i].substr(4) : fn.param_t[len-1-i])) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
             if (is_ref) {
                 if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
-                irb.emit("pushref", args[i].first);
+                pushes.emplace_back(make_pair(args[i].first, true));
             }
             else {
-                irb.emit("push", args[i].first);
+                pushes.emplace_back(make_pair(args[i].first, false));
             }
         }
     }
     string retval = irb.makeret();
-    irb.emit("callfunc", f.name, retval);
-    for (auto arg: args) {
-        irb.emit("pop", arg.first);
-    }
-    func fn;
-    functb.find(fid, true, fn);
+    irb.emit("call", new Value(fn.name), pushes, new Value(retval));
+    irb.emitlabel(irb.makelabel());
     return make_pair(new Value(retval), fn.rettype);
 }
 

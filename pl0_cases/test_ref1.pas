@@ -9,8 +9,8 @@ begin
     y := 100;
     p(x);
     if x = y then 
-        write("reference argument success.")
+        write("reference argument 1 success.")
     else
-        write("reference argument failed.", x);
+        write("reference argument 2 failed.", x);
 end.
 

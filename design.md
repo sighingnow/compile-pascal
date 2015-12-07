@@ -74,14 +74,11 @@ ABOUT x86 Code Generate
 2. []= array index source
 3. =[] target array index
 5. loadret
-6. push value
-7. pushref value
-8. pop
-9. callfunc function
-10. callproc procedure
+6. call func/proc {args} [return]
 11. read target
 12. write_s string label
 13. write_e value
+
 14. + c a b
 15. - c a b
 16. * c a b
@@ -90,10 +87,15 @@ ABOUT x86 Code Generate
 19. cmp a b
 20. label label_no
 21. goto label_no
-
-
+22. def // 定义循环语句的结束处的临时变量变量和case语句的条件表达式临时变量，在划分基本块时，def 语句被整合到函数或者过程头部。
 
 优化：
 
 1. 划分基本块：在四元式中，每个基本块对应一个label，用label编号作为基本块的编号。对于函数头声明，该块编号为 0
+2. 将函数调用也作为划分基本块的边界依据。
+** 有两种临时变量的作用范围会跨越基本块：
 
++ for 循环语句，作为结束条件的临时变量
++ case 语句，作为condition的临时变量。
+
+3. 按照pascal的语义，循环语句中，无论循环体是否执行，执行多少次，在循环结束后，循环变量的值都等于 end 的值。（解决方案：在循环末尾生成显式赋值语句）
