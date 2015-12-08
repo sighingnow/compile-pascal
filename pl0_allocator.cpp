@@ -161,13 +161,13 @@ std::string SimpleAllocator::locate(std::string name) {
 }
 
 std::string SimpleAllocator::addr(std::string name) {
-    int d = env.depth() - env.depth(name);
+    int d = env.depth(name);
     LOC loc;
     env.find(name, true, loc);
-    if (d == 0) {
+    if (d == env.depth()) {
         if (loc.is_ref) {
             this->spill("eax");
-            out.emit("    mov eax, dword [ebp" + loc.offset + ']');
+            out.emit("    mov eax, dword [ebp" + loc.offset +"]");
             return "[eax]";
         }
         else {
@@ -176,18 +176,11 @@ std::string SimpleAllocator::addr(std::string name) {
     }
     else {
         this->spill("eax");
-        out.emit("    mov eax, dword [ebp]");
-        d = d - 1;
-        while(d--) {
-            out.emit("    mov eax, dword [eax]");
-        }
+        out.emit("    mov eax, dword [ebp-" + std::to_string(d*4) + "]");
         if (loc.is_ref) {
-            out.emit("    mov eax, [eax" + loc.offset + ']');
-            return "[eax]";
+            out.emit("    mov eax, dword [eax" + loc.offset + "]");
         }
-        else {
-            return "[eax" + loc.offset + "]";
-        }
+        return "[eax" + loc.offset + "]";
     }
 }
 

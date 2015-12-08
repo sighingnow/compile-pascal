@@ -39,6 +39,16 @@ static void pl0_x86_gen_header(BasicBlock & bb, std::vector<std::string> & buffe
     buffer.emplace_back(string(bb.code[p].rd->sv) + ":");
     buffer.emplace_back(string("    push ebp"));
     buffer.emplace_back(string("    mov ebp, esp"));
+    // prepare displays.
+    int d = runtime.depth();
+    runtime.push(LOC(string("$fn") + bb.code[p].rd->sv, d));
+    buffer.emplace_back(";;;;;;;;;;;;;;;;;;;;;    save all ebp (displays) ;;;;;;;;;;;;;;;;;;");
+    buffer.emplace_back("    mov eax, dword [ebp]");
+    for (int i = 1; i < d; ++i) {
+        buffer.emplace_back("    push dword [eax-" + std::to_string(i*4) + "]");
+    }
+    dist = dist - 4 * d;
+    buffer.emplace_back("    push ebp");
     if (++p < bb.size() && bb.code[p].op == "allocret") {
         dist = dist - 4;
         runtime.push(LOC(bb.code[p].rd->sv, dist));
@@ -111,7 +121,7 @@ static void pl0_x86_gen_common(TAC & c) {
     }
     else if (c.op == "loadret") {
         manager.spillAll();
-        out.emit("    mov eax, dword [ebp-4]", c);
+        out.emit("    mov eax, dword [ebp-" + std::to_string(runtime.depth()*4+4) + "]", c);
     }
     else if (c.op == "exit") {
         out.emit(string("    mov eax, ") + c.rd->value(), c);
@@ -122,7 +132,7 @@ static void pl0_x86_gen_common(TAC & c) {
             if (a.second) { // call by reference
                 manager.store(a.first->sv);
                 out.emit(string("    lea eax, ") + manager.addr(a.first->sv));
-                out.emit(string("    push dword eax"));
+                out.emit(string("    push eax"));
             }
             else { // call by value.
                 if (a.first->t == Value::TYPE::INT) {
