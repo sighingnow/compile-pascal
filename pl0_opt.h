@@ -34,7 +34,7 @@ struct DAGNode {
     }
     void finalizeAttr() {
         auto iter = std::find_if(attr.begin(), attr.end(), [](Value *val) {
-            return val->t == Value::TYPE::INT || val->sv[0] != '~' || (val->sv.length() >= 2 && val->sv[1] == '~');
+            return val->t == Value::TYPE::IMM || val->sv[0] != '~' || (val->sv.length() >= 2 && val->sv[1] == '~');
         });
         if (iter == attr.end()) {
             attr.resize(1);

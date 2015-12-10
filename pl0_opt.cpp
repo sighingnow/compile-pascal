@@ -118,7 +118,7 @@ void BasicBlock::buildDAG() {
                 rd = record[*(code[p].rd)];
             }
             t = G.size();
-            G.emplace_back(DAGNode(t, new Value("~write_e"), "write_e", rd, p));
+            G.emplace_back(DAGNode(t, new Value("~write_e", "cmd"), "write_e", rd, p));
             G[rd].moreFa(); G[t].addSon(rd);
         }
         else if (code[p].op == "read") {

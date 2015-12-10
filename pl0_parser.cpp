@@ -146,7 +146,7 @@ pair<int, pl0_ast_constv *> pl0_char_fn(input_t *text) {
     if (verbose) {
         cout << "parsing: Char" << endl;
     }
-    return make_pair(std::get<0>(res), new pl0_ast_constv(text->locate(), std::get<1>(res) ? std::get<1>(res)->val : 0));
+    return make_pair(std::get<0>(res), new pl0_ast_constv(text->locate(), std::get<1>(res) ? std::get<1>(res)->val : 0, pl0_ast_constv::CHAR));
 }
 
 // <字符串> ::= "{十进制编码为32,33,35-126的ASCII字符}"
@@ -168,7 +168,7 @@ pair<int, pl0_ast_constv *> pl0_unsigned_fn(input_t *text) {
     if (verbose) {
         cout << "parsing: Unsigned" << endl;
     }
-    return make_pair(std::get<0>(res), new pl0_ast_constv(text->locate(), std::get<1>(res)));
+    return make_pair(std::get<0>(res), new pl0_ast_constv(text->locate(), std::get<1>(res), pl0_ast_constv::INT));
 }
 
 // <常量> ::= [+|-]<无符号整数>|<字符>
@@ -180,12 +180,12 @@ pair<int, pl0_ast_constv *> pl0_const_fn(input_t *text) {
         auto res2 = pl0_unsigned(text->drop(std::get<0>(res1)));
         ans = make_pair(
             std::get<0>(res2) == -1 ? -1 : (std::get<0>(res1) + std::get<0>(res2)),
-            new pl0_ast_constv(text->locate(), std::get<1>(res2)->val * flag)
+            new pl0_ast_constv(text->locate(), std::get<1>(res2)->val * flag, pl0_ast_constv::INT)
         );
     }
     else {
         auto res = (pl0_unsigned | pl0_char)(text);
-        ans = make_pair(std::get<0>(res), new pl0_ast_constv(text->locate(), std::get<1>(res) ? std::get<1>(res)->val : 0));
+        ans = make_pair(std::get<0>(res), new pl0_ast_constv(text->locate(), std::get<1>(res) ? std::get<1>(res)->val : 0, std::get<1>(res) ? std::get<1>(res)->dt : pl0_ast_constv::INT));
     }
     if (verbose) {
         cout << "parsing: Constant" << endl;
@@ -228,7 +228,7 @@ pair<int, pl0_ast_primitive_type *> pl0_primitive_type_fn(input_t *text) {
 
 // <类型> ::= <基本类型>|array'['<无符号整数>']' of <基本类型>
 pair<int, pl0_ast_type *> pl0_type_fn(input_t *text) {
-    function<pair<pl0_ast_constv *, pl0_ast_primitive_type *> (pl0_ast_primitive_type *)> fn = [&, text](pl0_ast_primitive_type *t) { return make_pair(new pl0_ast_constv(text->locate(), -1), t); };
+    function<pair<pl0_ast_constv *, pl0_ast_primitive_type *> (pl0_ast_primitive_type *)> fn = [&, text](pl0_ast_primitive_type *t) { return make_pair(new pl0_ast_constv(text->locate(), -1, pl0_ast_constv::INT), t); };
     auto parser = (pl0_primitive_type / fn) // not array
         | ((pl0_string_literal("array") >> spaces >> (pl0_character('[') >> pl0_unsigned << pl0_character(']')) << spaces << pl0_string_literal("of")) + pl0_primitive_type); // array
     auto res = (spaces >> parser << spaces)(text);
@@ -624,7 +624,7 @@ pair<int, pl0_ast_for_stmt *> pl0_for_stmt_fn(input_t *text) {
         std::get<1>(res).first.first.second,
         std::get<1>(res).second.first,
         std::get<1>(res).second.second,
-        std::get<1>(res).first.second == "downto" ? new pl0_ast_constv(text->locate(), -1) : new pl0_ast_constv(text->locate(), 1)
+        std::get<1>(res).first.second == "downto" ? new pl0_ast_constv(text->locate(), -1, pl0_ast_constv::INT) : new pl0_ast_constv(text->locate(), 1, pl0_ast_constv::INT)
     ));
 }
 

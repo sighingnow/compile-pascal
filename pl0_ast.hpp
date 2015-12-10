@@ -84,7 +84,8 @@ struct pl0_ast_const_define {
 struct pl0_ast_constv {
     pair<int, int> loc;
     int val;
-    pl0_ast_constv(pair<int, int> loc, int const & val): loc(loc), val(val) {}
+    enum DTYPE { INT, CHAR } dt;
+    pl0_ast_constv(pair<int, int> loc, int const val, DTYPE const dt): loc(loc), val(val), dt(dt) {}
 };
 struct pl0_ast_charseq {
     pair<int, int> loc;
@@ -327,16 +328,16 @@ struct pl0_ast_alnum {
 
 // TAC design
 struct Value {
-    enum TYPE { INT, STR } t; // 1: int, 2: string.
+    enum TYPE { IMM, STR } t; // literal type: 1: immediate, 2: string.
     int iv;
-    std::string sv;
-    Value(int v): t(TYPE::INT), iv(v) {};
-    Value(std::string v): t(TYPE::STR), sv(v) {};
+    std::string sv, dt; // date type: 1: integer, 2: char.
+    Value(int v, std::string dt): t(TYPE::IMM), iv(v), dt(dt) {};
+    Value(std::string v, std::string dt): t(TYPE::STR), sv(v), dt(dt) {};
     std::string const str() const;
     bool operator == (Value const & v) const {
         bool res = t == v.t;
         if (res) {
-            if (t == TYPE::INT) {
+            if (t == TYPE::IMM) {
                 res = res && iv == v.iv;
             }
             else {
@@ -349,7 +350,7 @@ struct Value {
         return value() < other.value();
     }
     std::string value() const {
-        if (this->t == TYPE::INT) {
+        if (this->t == TYPE::IMM) {
             return to_string(this->iv);
         }
         else {
@@ -374,16 +375,16 @@ public:
     std::vector<struct TAC> irs;
 public:
     IRBuilder() {}
-    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value(label))); }
+    void emitlabel(int label) { irs.emplace_back(TAC("label", new Value(label, "integer"))); }
     void emit(std::string op, Value *rd, Value *rs = nullptr, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, rs, rt)); }
     void emit(TAC c) { irs.emplace_back(c); }
-    void emit(std::string op, std::string rd) { irs.emplace_back(TAC(op, new Value(rd))); }
-    void emit(std::string op, std::string rd, std::string rs) { irs.emplace_back(TAC(op, new Value(rd), new Value(rs))); }
+    void emit(std::string op, std::string rd) { irs.emplace_back(TAC(op, new Value(rd, "string"))); }
+    void emit(std::string op, std::string rd, std::string rdt, std::string rs, std::string rst) { irs.emplace_back(TAC(op, new Value(rd, rdt), new Value(rs, rst))); }
     void emit(std::string op, Value *rd, vector<pair<Value *, bool>> & args, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, args, rt)); }
     int makelabel();
     string const maketmp();
     string const makeret();
-    void dump();
+    void dump() const;
 };
 
 /* Symbol table */
@@ -391,12 +392,12 @@ public:
 // variable.
 struct variable {
     std::string name;
-    std::string type;
+    std::string dt, type;
     int len;
-    variable(): name(""), type(""), len(-1) {}
-    variable(std::string, std::string);
-    variable(std::string, std::string, int);
-    std::string str() {
+    variable(): name(""), dt(""), len(-1) {}
+    variable(std::string, std::string dt, std::string type);
+    variable(std::string, std::string dt, std::string type, int);
+    std::string str() const {
         return string("variable ") + name + " " + type;
     }
 };
@@ -405,10 +406,11 @@ struct variable {
 struct constant {
     std::string name;
     int val;
-    constant(): name(""), val(0) {}
-    constant(std::string, int);
-    std::string str() {
-        return string("constant ") + name + " " + to_string(val);
+    std::string dt;
+    constant(): name(""), val(0), dt("") {}
+    constant(std::string, int, std::string dt);
+    std::string str() const {
+        return string("constant ") + name + " " + to_string(val) + " " + dt;
     }
 };
 
@@ -418,7 +420,7 @@ struct proc {
     std::vector<std::string> param_t;
     proc(): name("") {}
     proc(std::string, std::vector<std::string> &);
-    std::string str() {
+    std::string str() const {
         std::string res = name + " :: ";
         for (auto && p: param_t) {
             res = res + p + " -> ";
@@ -433,7 +435,7 @@ struct func {
     std::vector<std::string> param_t;
     func(): name(""), rettype("") {}
     func(std::string, std::string, std::vector<std::string> &);
-    std::string str() {
+    std::string str() const {
         std::string res = name + " :: ";
         for (auto && p: param_t) {
             res = res + p + " -> ";

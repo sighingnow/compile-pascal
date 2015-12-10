@@ -37,12 +37,8 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor);
 pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt);
 
 extern struct IRBuilder irb;
-static bool ready = false;
 
 static bool status = true;
-static string ERROR[] = {
-
-};
 
 static std::vector<std::string> scope;
 static std::string scope_name() {
@@ -68,7 +64,7 @@ bool pl0_tac_program(pl0_ast_program const *program) {
     irb.emit("program", "");
     irb.emit("procedure", "_main");
     pl0_tac_prog(program->program);
-    irb.emit("exit", new Value(0)); // main function: exit with 0.
+    irb.emit("exit", new Value(0, "integer")); // main function: exit with 0.
     irb.emit("endproc", "_main");
     irb.emit("endprogram", "");
     return status;
@@ -110,7 +106,7 @@ void pl0_tac_const_stmt(pl0_ast_const_stmt const *stmts) {
             pl0_ast_error(def->id->loc, string("redefinition of ") + "\"" + id + "\"");
         }
         else {
-            valtb.push(constant(id, def->val->val)); // update symbol table.
+            valtb.push(constant(id, def->val->val, (def->val->dt == pl0_ast_constv::INT ? "integer" : "char"))); // update symbol table.
         }
     }
     cout << __func__;
@@ -130,8 +126,8 @@ void pl0_tac_var_stmt(pl0_ast_var_stmt const *stmts) {
             }
             else {
                 string t = s->type->type->type + (s->type->len == -1 ? "" : "array");
-                vartb.push(variable(var->id, t, s->type->len)); // update symbol table.
-                irb.emit("def", new Value(var->id), new Value(t), new Value(s->type->len));
+                vartb.push(variable(var->id, s->type->type->type, t, s->type->len)); // update symbol table.
+                irb.emit("def", new Value(var->id, s->type->type->type), new Value(t, "string"), new Value(s->type->len, "integer"));
             }
         }
     }
@@ -149,11 +145,11 @@ void pl0_tac_procedure_stmt(pl0_ast_procedure_stmt const *stmts) {
         else {
             scope.emplace_back(pid); // update global scope.
             vector<string> proctype = pl0_tac_procedure_header(p.first);
-            irb.emit("procedure", scope_name());
+            irb.emit("procedure", new Value(scope_name(), "string"));
             proctb.push(proc(scope_name(), proctype)); // update symbol table.
             proctb.tag(); functb.tag();
             pl0_tac_prog(p.second);
-            irb.emit("endproc", scope_name());
+            irb.emit("endproc", new Value(scope_name(), "string"));
             // end of current scope.
             scope.pop_back(); // restore scope.
             valtb.detag(); vartb.detag();
@@ -177,10 +173,10 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
             irb.emit("function", scope_name());
             functb.push(func(scope_name(), f.first->type->type, functype)); // update symbol table
             proctb.tag(); functb.tag();
-            irb.emit("def", new Value(scope_name()), new Value("integer"), new Value(-1));
+            irb.emit("def", new Value(scope_name(), "string"), new Value("integer", "string"), new Value(-1, "integer"));
             pl0_tac_prog(f.second);
-            irb.emit("loadret", scope_name());
-            irb.emit("endfunc", scope_name());
+            irb.emit("loadret", new Value(scope_name(), "string"));
+            irb.emit("endfunc", new Value(scope_name(), "string"));
             // end of current scope.
             scope.pop_back(); // restore scope.
             valtb.detag(); vartb.detag();
@@ -212,14 +208,14 @@ vector<string> pl0_tac_param(pl0_ast_param_list const *param) {
             if (vartb.find(id->id, false) || id->id == scope.back()) {
                 pl0_ast_error(id->loc, string("duplicate parameter ") + id->id);
             }
-            vartb.push(variable(id->id, group->type->type)); // add parameters to symbol table.
+            vartb.push(variable(id->id, group->type->type, group->type->type)); // add parameters to symbol table.
             if (group->is_ref) {
                 type.emplace_back(string("ref_") + group->type->type);
-                irb.emit("paramref", id->id, group->type->type);
+                irb.emit("paramref", new Value(id->id, group->type->type), new Value(group->type->type, "string"));
             }
             else {
                 type.emplace_back(group->type->type);
-                irb.emit("param", id->id, group->type->type);
+                irb.emit("param", new Value(id->id, group->type->type), new Value(group->type->type, "string"));
             }
         }
     }
@@ -259,7 +255,7 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
         if (functb.find(stmt->id->id, true, f) == false) {
             pl0_ast_error(stmt->id->loc, string("use of undeclared function ") + "\"" + stmt->id->id + "\"");
         }
-        irb.emit("=", new Value(f.name), val);
+        irb.emit("=", new Value(f.name, "string"), val);
     }
     else {
         // just simple assign.
@@ -272,14 +268,14 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
                 pl0_ast_error(stmt->id->loc, string("treat ordinary variable ") + "\"" + stmt->id->id + "\" as an array");
             }
             Value *idx = pl0_tac_expr(stmt->idx).first;
-            irb.emit("[]=", new Value(stmt->id->id), idx, val);
+            irb.emit("[]=", new Value(stmt->id->id, var.dt), idx, val);
         }
         // assign to variable.
         else {
             if (var.len != -1) {
                 pl0_ast_error(stmt->id->loc, string("expected an non-array identifier ") + "\"" + stmt->id->id + "\"");
             }
-            irb.emit("=", new Value(stmt->id->id), val);
+            irb.emit("=", new Value(stmt->id->id, var.dt), val);
         }
     }
 }
@@ -294,7 +290,7 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     // if (lhs.second != rhs.second) {
     //     pl0_ast_error(stmt->cond->loc, "compare two expressions with different types.");
     // }
-    irb.emit("cmp", new Value(thenlabel), lhs.first, rhs.first);
+    irb.emit("cmp", new Value(thenlabel, "integer"), lhs.first, rhs.first);
 
     if (stmt->else_block == nullptr) {
         elselabel = endlabel;
@@ -319,30 +315,30 @@ void pl0_tac_cond_stmt(pl0_ast_cond_stmt const *stmt) {
     // | JNLE   | Jump if not less or equal    |             |                    |
     // +--------+------------------------------+-------------+--------------------+
     if (stmt->cond->op->op == "<") {
-        irb.emit("goto", new Value("jge"), new Value(elselabel));
+        irb.emit("goto", new Value("jge", "string"), new Value(elselabel, "integer"));
     }
     else if (stmt->cond->op->op == "<=") {
-        irb.emit("goto", new Value("jg"), new Value(elselabel));
+        irb.emit("goto", new Value("jg", "string"), new Value(elselabel, "integer"));
     }
     else if (stmt->cond->op->op == ">") {
-        irb.emit("goto", new Value("jle"), new Value(elselabel));
+        irb.emit("goto", new Value("jle", "string"), new Value(elselabel, "integer"));
     }
     else if (stmt->cond->op->op == ">=") {
-        irb.emit("goto", new Value("jl"), new Value(elselabel));
+        irb.emit("goto", new Value("jl", "string"), new Value(elselabel, "integer"));
     }
     else if (stmt->cond->op->op == "=") {
-        irb.emit("goto", new Value("jne"), new Value(elselabel));
+        irb.emit("goto", new Value("jne", "string"), new Value(elselabel, "integer"));
     }
     else if (stmt->cond->op->op == "<>") {
-        irb.emit("goto", new Value("je"), new Value(elselabel));
+        irb.emit("goto", new Value("je", "string"), new Value(elselabel, "integer"));
     }
     irb.emitlabel(thenlabel);
     pl0_tac_stmt(stmt->then_block);
-    irb.emit("goto", new Value("jmp"), new Value(endlabel));
+    irb.emit("goto", new Value("jmp", "string"), new Value(endlabel, "integer"));
     if (stmt->else_block != nullptr) {
         irb.emitlabel(elselabel);
         pl0_tac_stmt(stmt->else_block);
-        irb.emit("goto", new Value("jmp"), new Value(endlabel));
+        irb.emit("goto", new Value("jmp", "string"), new Value(endlabel, "integer"));
     }
     irb.emitlabel(endlabel);
 }
@@ -353,9 +349,9 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     // add case condition value to symbol table.
     Value *cond;
     if (case_cond.first->t == Value::TYPE::STR && case_cond.first->sv[0] == '~') {
-        cond = new Value("~" + case_cond.first->sv);
-        irb.emit("def", cond, new Value(case_cond.second), new Value(-1));
-        irb.emit("=", cond, new Value(case_cond.first->sv));
+        cond = new Value(string("~") + case_cond.first->sv, case_cond.second);
+        irb.emit("def", cond, new Value(case_cond.second, "string"), new Value(-1, "integer"));
+        irb.emit("=", cond, case_cond.first);
     }
     else {
         cond = case_cond.first;
@@ -366,15 +362,15 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
         labels.emplace_back(irb.makelabel());
     }
     labels.emplace_back(endlabel);
-    irb.emit("goto", new Value("jmp"), new Value(labels[0]));
+    irb.emit("goto", new Value("jmp", "string"), new Value(labels[0], "integer"));
     for (size_t i = 0; i < stmt->terms.size(); ++i) {
         int t = irb.makelabel();
         irb.emitlabel(labels[i]);
-        irb.emit("cmp", new Value(t), cond, new Value(stmt->terms[i]->constv->val));
-        irb.emit("goto", new Value("jne"), new Value(labels[i+1]));
+        irb.emit("cmp", new Value(t, "integer"), cond, new Value(stmt->terms[i]->constv->val, "integer"));
+        irb.emit("goto", new Value("jne", "string"), new Value(labels[i+1], "integer"));
         irb.emitlabel(t);
         pl0_tac_stmt(stmt->terms[i]->stmt);
-        irb.emit("goto", new Value("jmp"), new Value(endlabel));
+        irb.emit("goto", new Value("jmp", "string"), new Value(endlabel, "integer"));
     }
     irb.emitlabel(endlabel);
 }
@@ -401,7 +397,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
             if (is_ref) {
-                if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
+                if (args[i].first->t == Value::TYPE::IMM || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
                 pushes.emplace_back(make_pair(args[i].first, true));
@@ -411,7 +407,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
             }
         }
     }
-    irb.emit("call", new Value(p.name), pushes);
+    irb.emit("call", new Value(p.name, "string"), pushes);
     irb.emitlabel(irb.makelabel());
 }
 
@@ -422,15 +418,16 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     int innerlabel = irb.makelabel();
     int endlabel = irb.makelabel();
     // validate loop iterator.
-    if (vartb.find(stmt->iter->id, true) == false) {
+    variable var;
+    if (vartb.find(stmt->iter->id, true, var) == false) {
         pl0_ast_error(stmt->iter->loc, string("undeclared identifier ") + "\"" + stmt->iter->id + "\"");
     }
     pair<Value *, string> s = pl0_tac_expr(stmt->initial);
     if (s.second != "integer" && s.second != "char") {
         pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
     }
-    irb.emit("=", new Value(stmt->iter->id), s.first);
-    irb.emit("goto", new Value("jmp"), new Value(beginlabel));
+    irb.emit("=", new Value(stmt->iter->id, var.dt), s.first);
+    irb.emit("goto", new Value("jmp", "string"), new Value(beginlabel, "integer"));
     irb.emitlabel(beginlabel);
     pair<Value *, string> t = pl0_tac_expr(stmt->end);
     if (t.second != "integer" && t.second != "char") {
@@ -439,26 +436,26 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     // add end value to symbol table.
     Value *end;
     if (t.first->t == Value::TYPE::STR && t.first->sv[0] == '~') {
-        end = new Value("~" + t.first->sv);
-        irb.emit("def", end, new Value(t.second), new Value(-1));
-        irb.emit("=", end, new Value(t.first->sv));
+        end = new Value("~" + t.first->sv, t.second);
+        irb.emit("def", end, new Value(t.second, "string"), new Value(-1, "integer"));
+        irb.emit("=", end, t.first);
     }
     else {
         end = t.first;
     }
-    irb.emit("cmp", new Value(innerlabel), new Value(stmt->iter->id), end);
+    irb.emit("cmp", new Value(innerlabel, "integer"), new Value(stmt->iter->id, var.dt), end);
     if (stmt->step->val == 1) {
-        irb.emit("goto", new Value("jg"), new Value(endlabel));
+        irb.emit("goto", new Value("jg", "string"), new Value(endlabel, "integer"));
     }
     else {
-        irb.emit("goto", new Value("jl"), new Value(endlabel));
+        irb.emit("goto", new Value("jl", "string"), new Value(endlabel, "integer"));
     }
     irb.emitlabel(innerlabel); // label for inner executable block.
     pl0_tac_stmt(stmt->stmt);
-    irb.emit("+", new Value(stmt->iter->id), new Value(stmt->iter->id), new Value(stmt->step->val));
-    irb.emit("goto", new Value("jmp"), new Value(beginlabel));
+    irb.emit("+", new Value(stmt->iter->id, var.dt), new Value(stmt->iter->id, var.dt), new Value(stmt->step->val, "integer"));
+    irb.emit("goto", new Value("jmp", "string"), new Value(beginlabel, "integer"));
     irb.emitlabel(endlabel);
-    irb.emit("=", new Value(stmt->iter->id), t.first);
+    irb.emit("=", new Value(stmt->iter->id, var.dt), t.first);
 }
 
 void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt) {
@@ -480,13 +477,13 @@ void pl0_tac_write_stmt(pl0_ast_write_stmt const *stmt) {
     cout << __func__;
     switch (stmt->t) {
         case pl0_ast_write_stmt::type_t::ONLY_STRING:
-            irb.emit("write_s", new Value(stmt->str->val), new Value(irb.makelabel()));
+            irb.emit("write_s", new Value(stmt->str->val, "string"), new Value(irb.makelabel(), "integer"));
             break;
         case pl0_ast_write_stmt::type_t::ONLY_EXPR:
             irb.emit("write_e", pl0_tac_expr(stmt->expr).first);
             break;
         case pl0_ast_write_stmt::type_t::STRING_AND_EXPR:
-            irb.emit("write_s", new Value(stmt->str->val), new Value(irb.makelabel()));
+            irb.emit("write_s", new Value(stmt->str->val, "string"), new Value(irb.makelabel(), "integer"));
             irb.emit("write_e", pl0_tac_expr(stmt->expr).first);
             break;
         default: cout << "UNIMPLEMENT WRITE TYPE" << endl;
@@ -504,13 +501,13 @@ pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
     pair<Value *, string> head = pl0_tac_term(expr->terms[0].second);
     Value *ans = head.first, *prev = head.first;
     if (expr->terms[0].first->op == '-') {
-        ans = new Value(irb.maketmp());
-        irb.emit("-", ans, new Value(0), prev);
+        ans = new Value(irb.maketmp(), head.second);
+        irb.emit("-", ans, new Value(0, head.second), prev);
         needtmp = false; // no more temporary variable.
     }
     if (expr->terms.size() > 1) {
         for (size_t i = 1; i < expr->terms.size(); ++i) {
-            if (needtmp) { ans = new Value(irb.maketmp()); }
+            if (needtmp) { ans = new Value(irb.maketmp(), head.second); }
             auto element = pl0_tac_term(expr->terms[i].second);
             // if (element.second != head.second) {
             //     pl0_ast_error(expr->terms[i].second->loc, "do +/- operation on two terms with different types.");
@@ -529,7 +526,7 @@ pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
     Value *ans = head.first, *prev = head.first;
     if (term->factors.size() > 1) {
         for (size_t i = 1; i < term->factors.size(); ++i) {
-            if (needtmp) { ans = new Value(irb.maketmp()); }
+            if (needtmp) { ans = new Value(irb.maketmp(), head.second); }
             auto element = pl0_tac_factor(term->factors[i].second);
             // if (element.second != head.second) {
             //     pl0_ast_error(term->factors[i].second->loc, "do *// operation on two factors with different types.");
@@ -556,7 +553,7 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor) {
             if (d1 > d2) {
                 // constant
                 valtb.find(factor->ptr.id->id, true, val);
-                ans = make_pair(new Value(val.val), "integer");
+                ans = make_pair(new Value(val.val, val.dt), "integer");
             }
             else if (d2 > d1) {
                 // variable
@@ -564,16 +561,16 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor) {
                 if (var.type.length() >= 5 && var.type.substr(0, 5) == "array") {
                     pl0_ast_error(factor->loc, string("use an array identifier ") + "\"" + var.name + "\"" + " as a factor.");
                 }
-                ans = make_pair(new Value(var.name), var.type);
+                ans = make_pair(new Value(var.name, var.dt), var.dt);
             }
             else {
                 // undeclared identifier
                 pl0_ast_error(factor->loc, string("use of undeclared identifier ") + "\"" + factor->ptr.id->id + "\"");
-                ans = make_pair(new Value(factor->ptr.id->id), "");
+                ans = make_pair(new Value(factor->ptr.id->id, "undefined"), "");
             }
             break;
         case pl0_ast_factor::type_t::UNSIGNED:
-            ans = make_pair(new Value(factor->ptr.unsignedn->val), "integer");
+            ans = make_pair(new Value(factor->ptr.unsignedn->val, factor->ptr.unsignedn->dt == pl0_ast_constv::INT ? "integer" : "char"), "integer");
             break;
         case pl0_ast_factor::type_t::EXPR:
             ans = pl0_tac_expr(factor->ptr.expr);
@@ -594,11 +591,15 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor) {
             }
             // validate array index.
             idx = pl0_tac_expr(factor->arraye.second).first;                
-            t = new Value(irb.maketmp());
-            irb.emit("=[]", t, new Value(array.name), idx);
+            t = new Value(irb.maketmp(), array.dt);
+            irb.emit("=[]", t, new Value(array.name, array.dt), idx);
             ans = make_pair(t, array.type.substr(0, array.type.length()-5));
             break;
-        default: ans = make_pair(new Value("^^^^^"), ""); cout << "UNIMPLEMENT EXPRESSION" << endl;
+        default:
+            pl0_ast_error(factor->loc, "undefined syntax");
+            ans = make_pair(new Value("^^^^^", "undefined"), "");
+            cout << "UNIMPLEMENT EXPRESSION" << endl;
+            break;
     }
     return ans;
 }
@@ -611,14 +612,14 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
         int d1 = valtb.depth(fid), d2 = vartb.depth(fid), d3 = functb.depth(fid);
         if (d1 > d2 && d1 > d3) {
             constant val; valtb.find(fid, true, val);
-            return make_pair(new Value(val.val), "integer");
+            return make_pair(new Value(val.val, val.dt), "integer");
         }
         if (d2 > d3) {
             variable var; vartb.find(fid, true, var);
             if (var.len != -1) {
                 pl0_ast_error(stmt->loc, string("use an array ") + "\"" + var.name + "\"" + " as a factor.");
             }
-            return make_pair(new Value(var.name), var.type);
+            return make_pair(new Value(var.name, var.dt), var.type);
         }
     }
 
@@ -646,7 +647,7 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
                 pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             }
             if (is_ref) {
-                if (args[i].first->t == Value::TYPE::INT || args[i].first->sv[0] == '~') {
+                if (args[i].first->t == Value::TYPE::IMM || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
                 pushes.emplace_back(make_pair(args[i].first, true));
@@ -657,9 +658,9 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
         }
     }
     string retval = irb.makeret();
-    irb.emit("call", new Value(fn.name), pushes, new Value(retval));
+    irb.emit("call", new Value(fn.name, "string"), pushes, new Value(retval, fn.rettype));
     irb.emitlabel(irb.makelabel());
-    return make_pair(new Value(retval), fn.rettype);
+    return make_pair(new Value(retval, fn.rettype), fn.rettype);
 }
 
 #endif /* __PLO_TAC_GEN_HPP__ */

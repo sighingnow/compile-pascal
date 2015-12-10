@@ -94,14 +94,15 @@ allpas		:= test_null_stmt.exec \
 			test_ref2.exec \
 			test_array1.exec \
 			test_case1.exec \
-			test_swap1.exec
+			test_swap1.exec \
+			test_io_char.exec
 
 test-pas: dist $(allpas)
 
 .SECONDARY: a.asm
 
 compile: dist
-	pl0c.out pl0_cases/test_swap1.pas > a.asm
+	pl0c.out pl0_cases/test_io_char.pas > a.asm
 	@make asm
 
 asm: a.asm

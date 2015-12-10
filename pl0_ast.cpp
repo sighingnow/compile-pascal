@@ -112,7 +112,7 @@ parser_t<pl0_ast_alnum *> pl0_digit("pl0 digit", pl0_digit_fn);
 
 std::string const Value::str() const {
     switch (t) {
-        case INT: return to_string(iv);
+        case IMM: return to_string(iv);
         case STR: return sv;
         default: return "";
     }
@@ -141,7 +141,7 @@ string const IRBuilder::maketmp() {
 string const IRBuilder::makeret() {
     return "~ret" + to_string(++ret);
 }
-void IRBuilder::dump() {
+void IRBuilder::dump() const {
     for (auto ir: irs) {
         cout << ";; " << ir.str() << endl;
     }
@@ -152,13 +152,13 @@ struct IRBuilder irb;
 /* Global env. (symbol table) */
 
 
-variable::variable(std::string name, std::string type = "integer"): name(name), type(type), len(-1) {}
-variable::variable(std::string name, std::string type, int len): name(name), type(type), len(len) {}
+variable::variable(std::string name, std::string dt, std::string type): name(name), dt(dt), type(type), len(-1) {}
+variable::variable(std::string name, std::string dt, std::string type, int len): name(name), dt(dt), type(type), len(len) {}
 bool operator == (variable const & a, variable const & b) {
     return a.name == b.name && a.type == b.type;
 }
 
-constant::constant(std::string name, int v): name(name), val(v) {}
+constant::constant(std::string name, int v, std::string dt): name(name), val(v), dt(dt) {}
 bool operator == (constant const & a, constant const & b) {
     return a.name == b.name;
 }
