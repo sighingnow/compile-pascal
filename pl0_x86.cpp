@@ -42,7 +42,6 @@ static void pl0_x86_gen_header(BasicBlock & bb, std::vector<std::string> & buffe
     // prepare displays.
     int d = runtime.depth();
     runtime.push(LOC(string("$fn") + bb.code[p].rd->sv, d));
-    buffer.emplace_back(";;;;;;;;;;;;;;;;;;;;;    save all ebp (displays) ;;;;;;;;;;;;;;;;;;");
     buffer.emplace_back("    mov eax, dword [ebp]");
     for (int i = 1; i < d; ++i) {
         buffer.emplace_back("    push dword [eax-" + std::to_string(i*4) + "]");

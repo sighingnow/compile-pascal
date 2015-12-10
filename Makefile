@@ -96,7 +96,7 @@ test-pas: $(allpas)
 .SECONDARY: a.asm
 
 compile: dist
-	pl0c.out pl0_cases/test_ref1.pas > a.asm
+	pl0c.out pl0_cases/test_swap1.pas > a.asm
 	@make asm
 
 asm: a.asm

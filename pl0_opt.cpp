@@ -48,12 +48,12 @@ void BasicBlock::setSuffix(std::vector<int> & suffix) {
 }
 
 void BasicBlock::buildDAG() {
-    size_t p = 1;
+    size_t p = this->s;
     std::map<Value, int> record;
-    std::vector<DAGNode> G;
-    int rd, rs, rt;
+    int rd, rs, rt, t;
     for (p = 1; code[p].op != "goto" && code[p].op != "call"
-            && code[p].op != "loadret" && code[p].op != "endproc"; ++p) {
+            && code[p].op != "loadret" && code[p].op != "exit" && code[p].op != "endproc"; ++p)
+    {
         if (code[p].op == "*" || code[p].op == "/" || code[p].op == "%"
                 || code[p].op == "+" || code[p].op == "-"
                 || code[p].op == "cmp"
@@ -61,64 +61,171 @@ void BasicBlock::buildDAG() {
             // find left operand.
             if (record.count(*(code[p].rs)) == 0) {
                 rs = G.size();
-                G.emplace_back(DAGNode(code[p].rs));
+                G.emplace_back(DAGNode(rs, code[p].rs));
+                record.emplace(*(code[p].rs), rs);
             }
             else {
                 rs = record[*(code[p].rs)];
             }
-            record.emplace(*(code[p].rs), rs);
             // find right operand.
             if (record.count(*(code[p].rt)) == 0) {
                 rt = G.size();
-                G.emplace_back(DAGNode(code[p].rd));
+                G.emplace_back(DAGNode(rt, code[p].rt));
+                record.emplace(*(code[p].rt), rt);
             }
             else {
                 rt = record[*(code[p].rt)];
             }
-            record.emplace(*(code[p].rt), rt);
             // find op and target.
             auto iter = std::find_if(G.begin(), G.end(), [&](DAGNode & node) {
-                return code[p].op == node.op;
+                return code[p].op == node.op && rs == node.lhs && rt == node.rhs;
             });
-            if (iter == G.end() || iter->lhs != rs || iter->rhs != rt) {
+            if (iter == G.end()) {
                 rd = G.size();
-                G.emplace_back(DAGNode(code[p].rd, code[p].op, rs, rt));
+                G.emplace_back(DAGNode(rd, code[p].rd, code[p].op, rs, rt));
             }
             else {
                 rd = iter - G.begin();
+                G[rd].addAttr(code[p].rd);
             }
-            record.emplace(*(code[p].rd), rd);
+            G[rs].moreFa(); G[rt].moreFa();
+            G[rd].addSon(rs); G[rd].addSon(rt);
+            record[*(code[p].rd)] = rd; // insert or assign (replace)
         }
         else if (code[p].op == "=") {
             if (record.count(*(code[p].rs)) == 0) {
                 rs = G.size();
-                G.emplace_back(DAGNode(code[p].rs));
+                G.emplace_back(DAGNode(rs, code[p].rs));
+                record.emplace(*(code[p].rs), rs);
             }
             else {
                 rs = record[*(code[p].rs)];
             }
-            record.emplace(*(code[p].rs), rs);
-            auto iter = std::find_if(G.begin(), G.end(), [&](DAGNode & node) {
-                return code[p].op == node.op;
-            });
-            if (iter == G.end() || iter->lhs != rs || iter->rhs != rt) {
+            rd = rs;
+            G[rd].addAttr(code[p].rd);
+            record[*(code[p].rd)] = rd;
+        }
+        else if (code[p].op == "write_s") {
+            IOBuf.emplace_back(make_pair(p, code[p]));
+        }
+        else if (code[p].op == "write_e") {
+            if (record.count(*(code[p].rd)) == 0) {
                 rd = G.size();
-                G.emplace_back(DAGNode(code[p].rd, code[p].op, rs, rt));
+                G.emplace_back(DAGNode(rd, code[p].rd));
+                record.emplace(*(code[p].rd), rd);
             }
             else {
-                rd = iter - G.begin();
+                rd = record[*(code[p].rd)];
             }
-            record.emplace(*(code[p].rd), rd);
+            t = G.size();
+            G.emplace_back(DAGNode(t, new Value("~write_e"), "write_e", rd, p));
+            G[rd].moreFa(); G[t].addSon(rd);
         }
-        else if (code[p].op == "write_s" || code[p].op == "write_e") {
-
+        else if (code[p].op == "read") {
+            if (record.count(*(code[p].rd)) == 0) {
+                rd = G.size();
+                G.emplace_back(DAGNode(rd, code[p].rd));
+                record.emplace(*(code[p].rd), rd);
+            }
+            else {
+                rd = record[*(code[p].rd)];
+            }
+            t = G.size();
+            G.emplace_back(DAGNode(t, code[p].rd, "read", rd, p));
+            G[rd].moreFa(); G[t].addSon(rd);
+            record[*(code[p].rd)] = t;
         }
     }
+    this->t = p;
 }
 
-void BasicBlock::doCSE() {
+void BasicBlock::solveDAG() {
+    for (auto && node: G) {
+        node.finalizeAttr();
+    }
+    for (auto && g: G) {
+        cout << ";; " << g.str() << endl;
+    }
+    std::vector<int> Q;
+    while (Q.size() < G.size()) {
+        int sel = 0, p = -1;
+        for (p = G.size() - 1; p >= 0; --p) {
+            if (!G[p].used && G[p].noFa()) { sel = p; break; }
+        }
+        Q.emplace(Q.begin(), sel); G[sel].used = true;
+        for (auto && s: G[sel].sons) {
+            G[s].lessFa();
+        }
+        int l = G[sel].lhs;
+        while (l != -1 && !G[l].used && G[l].noFa()) {
+            Q.emplace(Q.begin(), l); G[l].used = true;
+            for (auto && s: G[l].sons) {
+                G[s].lessFa();
+            }
+            l = G[l].lhs;
+        }
+    }
+    std::vector<TAC> irs;
+    for (int i = 0; i < this->s; ++i) {
+        irs.emplace_back(this->code[i]);
+    }
+    for (auto && nno: Q) {
+        if (G[nno].lhs != -1 || G[nno].rhs != -1) {
+            if (G[nno].op == "=") {
+                irs.emplace_back(TAC(G[nno].op, G[nno].attr[0], G[G[nno].lhs].attr[0]));
+            }
+            else if (G[nno].op == "read") {
+                while (!this->IOBuf.empty()) {
+                    if (this->IOBuf[0].first < G[nno].rhs) {
+                        irs.emplace_back(this->IOBuf[0].second);
+                        this->IOBuf.erase(IOBuf.begin());
+                    }
+                    else {
+                        break;
+                    }
+                }
+                irs.emplace_back(TAC("read", G[G[nno].lhs].attr[0]));
+            }
+            else if (G[nno].op == "write_e") {
+                while (!this->IOBuf.empty()) {
+                    if (this->IOBuf[0].first < G[nno].rhs) {
+                        irs.emplace_back(this->IOBuf[0].second);
+                        this->IOBuf.erase(IOBuf.begin());
+                    }
+                    else {
+                        break;
+                    }
+                }
+                irs.emplace_back(TAC("write_e", G[G[nno].lhs].attr[0]));
+            }
+            else {
+                irs.emplace_back(TAC(G[nno].op, G[nno].attr[0], G[G[nno].lhs].attr[0], G[G[nno].rhs].attr[0]));
+            }
+        }
+        else {
+            // DO NOTHING.
+        }
+        if (G[nno].attr.size() > 1) {
+            for (size_t i = 1; i < G[nno].attr.size(); ++i) {
+                irs.emplace_back(TAC("=", G[nno].attr[i], G[nno].attr[0]));
+            }
+        }
+    }
+    while (!this->IOBuf.empty()) {
+        irs.emplace_back(this->IOBuf[0].second);
+        this->IOBuf.erase(IOBuf.begin());
+    }
+    for (size_t i = t; i < this->code.size(); ++i) {
+        irs.emplace_back(this->code[i]);
+    }
+    this->code.swap(irs);
+}
+
+// Common subexpression elimination (via DAG)
+void BasicBlock::DAGPass() {
     if (this->no == 0) { return; }
-    
+    this->buildDAG();
+    this->solveDAG();
 }
 
 static int pl0_block_helper(std::vector<TAC> & code, std::vector<BasicBlock> & bbs, int p,
@@ -190,13 +297,6 @@ int pl0_block(std::vector<TAC> & code, std::vector<BasicBlock> & bbs, int p) {
         bb.setSuffix(sufs[bb.no]);
     }
     return bbs.size();
-}
-
-// Common subexpression elimination (via DAG)
-void CSEPass(std::vector<BasicBlock> & bbs) {
-    for (auto && bb: bbs) {
-        bb.doCSE();
-    }
 }
 
 static void GenKillHelper(std::vector<BasicBlock> & bbs, int p = 0) {

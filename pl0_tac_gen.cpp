@@ -351,8 +351,14 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     cout << __func__;
     auto case_cond = pl0_tac_expr(stmt->expr);
     // add case condition value to symbol table.
+    Value *cond;
     if (case_cond.first->t == Value::TYPE::STR && case_cond.first->sv[0] == '~') {
-        irb.emit("def", case_cond.first, new Value(case_cond.second), new Value(-1));
+        cond = new Value("~" + case_cond.first->sv);
+        irb.emit("def", cond, new Value(case_cond.second), new Value(-1));
+        irb.emit("=", cond, new Value(case_cond.first->sv));
+    }
+    else {
+        cond = case_cond.first;
     }
     int endlabel = irb.makelabel();
     std::vector<int> labels;
@@ -364,7 +370,7 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     for (size_t i = 0; i < stmt->terms.size(); ++i) {
         int t = irb.makelabel();
         irb.emitlabel(labels[i]);
-        irb.emit("cmp", new Value(t), case_cond.first, new Value(stmt->terms[i]->constv->val));
+        irb.emit("cmp", new Value(t), cond, new Value(stmt->terms[i]->constv->val));
         irb.emit("goto", new Value("jne"), new Value(labels[i+1]));
         irb.emitlabel(t);
         pl0_tac_stmt(stmt->terms[i]->stmt);
@@ -431,10 +437,16 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
         pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
     }
     // add end value to symbol table.
+    Value *end;
     if (t.first->t == Value::TYPE::STR && t.first->sv[0] == '~') {
-        irb.emit("def", t.first, new Value(t.second), new Value(-1));
+        end = new Value("~" + t.first->sv);
+        irb.emit("def", end, new Value(t.second), new Value(-1));
+        irb.emit("=", end, new Value(t.first->sv));
     }
-    irb.emit("cmp", new Value(innerlabel), new Value(stmt->iter->id), t.first);
+    else {
+        end = t.first;
+    }
+    irb.emit("cmp", new Value(innerlabel), new Value(stmt->iter->id), end);
     if (stmt->step->val == 1) {
         irb.emit("goto", new Value("jg"), new Value(endlabel));
     }

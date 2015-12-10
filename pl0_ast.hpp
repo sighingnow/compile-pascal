@@ -331,7 +331,7 @@ struct Value {
     std::string sv;
     Value(int v): t(TYPE::INT), iv(v) {};
     Value(std::string v): t(TYPE::STR), sv(v) {};
-    std::string str();
+    std::string const str() const;
     bool operator == (Value const & v) const {
         bool res = t == v.t;
         if (res) {
@@ -369,7 +369,7 @@ struct TAC {
 /* IR builder. */
 struct IRBuilder {
 public:
-    int label = 0, temp = 0, ret = 0;
+    int label = 0, tmp = 0, var = 0, ret = 0;
     std::vector<struct TAC> irs;
 public:
     IRBuilder() {}
@@ -380,8 +380,8 @@ public:
     void emit(std::string op, std::string rd, std::string rs) { irs.emplace_back(TAC(op, new Value(rd), new Value(rs))); }
     void emit(std::string op, Value *rd, vector<pair<Value *, bool>> & args, Value *rt = nullptr) { irs.emplace_back(TAC(op, rd, args, rt)); }
     int makelabel();
-    string maketmp();
-    string makeret();
+    string const maketmp();
+    string const makeret();
     void dump();
 };
 

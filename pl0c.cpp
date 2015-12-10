@@ -46,6 +46,9 @@ int main(int argc, char **argv) {
     pl0_block(irb.irs, bbs);
     for (auto && bb: bbs) {
         bb.dump();
+        // cout << ";;;;;;;;;;;;;;;;;;;;;DO DAG Pass" << endl;
+        // bb.DAGPass();
+        // bb.dump();
     }
 
     cout << "\n;; <<<<<<<<<<<<<  Assembly (Intel syntax, nasm)   <<<<<<<<<<<<\n" << endl;
@@ -57,10 +60,6 @@ int main(int argc, char **argv) {
     } catch (...) {
         cout << string(";; !!!Exception: ") + "unknown exception." << endl;
     }
-
-    cout << "\n;; <<<<<<<<<<<<<  Three-address Code  <<<<<<<<<<<<<<<<<<<<<<<<\n" << endl;
-
-    irb.dump();
     
     return 0;
 }

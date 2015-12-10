@@ -6,5 +6,5 @@ begin
     begin
     end;
     for c := a to b do;
-    write("Parsing Null Statement Success")
+    write("null statement success")
 end.
