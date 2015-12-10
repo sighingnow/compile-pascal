@@ -31,6 +31,11 @@ else
 	CXXFLAGS						+= -O1 -DNDEBUG
 endif
 
+PATCH 								:= 0
+ifeq ($(PATCH), 1)
+	CXXFLAGS						+= -DENABLE_PATCH
+endif
+
 UTILS								:= pl0_parser.o \
 									pl0_ast.o \
 									pl0_tac_gen.o \
@@ -91,7 +96,7 @@ allpas		:= test_null_stmt.exec \
 			test_case1.exec \
 			test_swap1.exec
 
-test-pas: $(allpas)
+test-pas: dist $(allpas)
 
 .SECONDARY: a.asm
 

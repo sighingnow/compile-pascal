@@ -5,6 +5,7 @@
 #include <map>
 #include <algorithm>
 #include "pl0_ast.hpp"
+#include "patch.hpp"
 
 using namespace std;
 
@@ -19,13 +20,13 @@ struct DAGNode {
     DAGNode(int no, Value *val): no(no), fa(0), used(false), op(""), lhs(-1), rhs(-1) { attr.emplace_back(val); }
     DAGNode(int no, Value *val, string op, int lhs, int rhs = -1): no(no), fa(0), used(false), op(op), lhs(lhs), rhs(rhs) { attr.emplace_back(val); }
     string const str() const {
-        string ans = string("Node ") + std::to_string(no) + string(": ");
+        string ans = string("Node ") + to_string(no) + string(": ");
         ans += op + " ";
-        ans += std::to_string(lhs) + " " + std::to_string(rhs) + " -> [";
+        ans += to_string(lhs) + " " + to_string(rhs) + " -> [";
         for (auto && v: attr) {
             ans += v->str() + ", ";
         }
-        ans += "], fa: " + std::to_string(fa);
+        ans += "], fa: " + to_string(fa);
         return ans;
     }
     void addAttr(Value *val) {

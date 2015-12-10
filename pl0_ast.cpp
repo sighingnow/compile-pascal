@@ -112,7 +112,7 @@ parser_t<pl0_ast_alnum *> pl0_digit("pl0 digit", pl0_digit_fn);
 
 std::string const Value::str() const {
     switch (t) {
-        case INT: return std::to_string(iv);
+        case INT: return to_string(iv);
         case STR: return sv;
         default: return "";
     }
@@ -136,10 +136,10 @@ int IRBuilder::makelabel() {
     return ++this->label;
 }
 string const IRBuilder::maketmp() {
-    return "~t" + std::to_string(++tmp);
+    return "~t" + to_string(++tmp);
 }
 string const IRBuilder::makeret() {
-    return "~ret" + std::to_string(++ret);
+    return "~ret" + to_string(++ret);
 }
 void IRBuilder::dump() {
     for (auto ir: irs) {

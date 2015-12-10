@@ -2,6 +2,7 @@
 #include <iostream>
 #include "pl0_ast.hpp"
 #include "pl0_x86.h"
+#include "patch.hpp"
 using namespace std;
 
 RegisterAllocator::RegisterAllocator(pl0_env<LOC> & env, struct IOOut & out, int & dist): env(env), out(out), dist(dist) {}
@@ -176,7 +177,7 @@ std::string SimpleAllocator::addr(std::string name) {
     }
     else {
         this->spill("eax");
-        out.emit("    mov eax, dword [ebp-" + std::to_string(d*4) + "]");
+        out.emit("    mov eax, dword [ebp-" + to_string(d*4) + "]");
         if (loc.is_ref) {
             out.emit("    mov eax, dword [eax" + loc.offset + "]");
         }

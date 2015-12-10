@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "patch.hpp"
 using namespace std;
 
 struct pl0_ast_t;
@@ -349,7 +350,7 @@ struct Value {
     }
     std::string value() const {
         if (this->t == TYPE::INT) {
-            return std::to_string(this->iv);
+            return to_string(this->iv);
         }
         else {
             return this->sv;
@@ -407,7 +408,7 @@ struct constant {
     constant(): name(""), val(0) {}
     constant(std::string, int);
     std::string str() {
-        return string("constant ") + name + " " + std::to_string(val);
+        return string("constant ") + name + " " + to_string(val);
     }
 };
 
@@ -447,13 +448,13 @@ struct LOC {
     std::string offset; // offset from variable's base address to ebp register.
     bool is_ref;
     bool in_mem; // true: in memory, false: in register;
-    LOC(): name(""), offset(std::to_string(0x7fffffff)), is_ref(false), in_mem(false) {}
+    LOC(): name(""), offset(to_string(0x7fffffff)), is_ref(false), in_mem(false) {}
     LOC(string name, int offset, bool is_ref = false): name(name), is_ref(is_ref), in_mem(false) {
-        this->offset = offset < 0 ? std::to_string(offset) : (string("+") + std::to_string(offset));
+        this->offset = offset < 0 ? to_string(offset) : (string("+") + to_string(offset));
     }
     LOC(string name, std::string offset, bool is_ref = false): name(name), offset(offset), is_ref(is_ref), in_mem(false) {}
     std::string str() {
-        return name + ": " + this->offset + " is_ref: " + std::to_string(is_ref) + " in_mem: " + std::to_string(in_mem);
+        return name + ": " + this->offset + " is_ref: " + to_string(is_ref) + " in_mem: " + to_string(in_mem);
     }
 };
 

@@ -28,7 +28,7 @@ static std::string x86_gen_def(TAC & code) {
     }
     dist -= size;
     runtime.push(LOC(code.rd->sv, dist));
-    return string("    sub esp, ") + std::to_string(size) + "\t\t;; " + code.str();
+    return string("    sub esp, ") + to_string(size) + "\t\t;; " + code.str();
 }
 
 static void pl0_x86_gen_header(BasicBlock & bb, std::vector<std::string> & buffer) {
@@ -44,14 +44,14 @@ static void pl0_x86_gen_header(BasicBlock & bb, std::vector<std::string> & buffe
     runtime.push(LOC(string("$fn") + bb.code[p].rd->sv, d));
     buffer.emplace_back("    mov eax, dword [ebp]");
     for (int i = 1; i < d; ++i) {
-        buffer.emplace_back("    push dword [eax-" + std::to_string(i*4) + "]");
+        buffer.emplace_back("    push dword [eax-" + to_string(i*4) + "]");
     }
     dist = dist - 4 * d;
     buffer.emplace_back("    push ebp");
     if (++p < bb.size() && bb.code[p].op == "allocret") {
         dist = dist - 4;
         runtime.push(LOC(bb.code[p].rd->sv, dist));
-        buffer.emplace_back(string("    sub esp, ") + std::to_string(4) + "\t\t;; " + bb.code[p].str());
+        buffer.emplace_back(string("    sub esp, ") + to_string(4) + "\t\t;; " + bb.code[p].str());
         p = p + 1;
     }
     while (p < bb.size() && bb.code[p].op == "def") {
@@ -120,7 +120,7 @@ static void pl0_x86_gen_common(TAC & c) {
     }
     else if (c.op == "loadret") {
         manager.spillAll();
-        out.emit("    mov eax, dword [ebp-" + std::to_string(runtime.depth()*4+4) + "]", c);
+        out.emit("    mov eax, dword [ebp-" + to_string(runtime.depth()*4+4) + "]", c);
     }
     else if (c.op == "exit") {
         out.emit(string("    mov eax, ") + c.rd->value(), c);
@@ -151,10 +151,10 @@ static void pl0_x86_gen_common(TAC & c) {
             manager.remap("eax", c.rt->sv);
         }
         if (c.args.size() > 0) { // pop
-            out.emit("    add esp, " + std::to_string(c.args.size() * 4));
+            out.emit("    add esp, " + to_string(c.args.size() * 4));
         }
         if (old.back() - dist > 0) {
-            out.emit(string("    add esp, ") + std::to_string(old.back() - dist));
+            out.emit(string("    add esp, ") + to_string(old.back() - dist));
         }
         dist = old.back(); old.pop_back();
     }
@@ -332,7 +332,7 @@ static void pl0_x86_gen_common(TAC & c) {
             comp = string("    cmp ") + t + ", " + manager.locate(c.rt->sv);
         }
         if (old.back() - dist > 0) {
-            out.emit(string("    add esp, ") + std::to_string(old.back() - dist));
+            out.emit(string("    add esp, ") + to_string(old.back() - dist));
             dist = old.back();
         }
         out.emit(comp, c);
@@ -344,7 +344,7 @@ static void pl0_x86_gen_common(TAC & c) {
     else if (c.op == "goto") {
         manager.spillAll();
         if (old.back() - dist > 0) {
-            out.emit(string("    add esp, ") + std::to_string(old.back() - dist));
+            out.emit(string("    add esp, ") + to_string(old.back() - dist));
         }
         dist = old.back(); old.pop_back();
         out.emit(string("    ") + c.rd->sv + " __L" + c.rs->value(), c);

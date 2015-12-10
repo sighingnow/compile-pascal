@@ -9,6 +9,7 @@
 #include <ctime>
 #include "pl0_opt.h"
 #include "pl0_ast.hpp"
+#include "patch.hpp"
 
 using namespace std;
 
