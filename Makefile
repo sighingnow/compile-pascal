@@ -18,6 +18,11 @@ else
 	CXXFLAGS						+= -static -O3 -DNDEBUG
 endif
 
+PATCH 								:= 0
+ifeq ($(PATCH), 1)
+	CXXFLAGS						+= -DENABLE_PATCH
+endif
+
 ## default target.
 all: clean googletest test
 

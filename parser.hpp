@@ -7,6 +7,7 @@
 
 #include "input_t.hpp"
 #include "parse_tool.hpp"
+#include "patch.hpp"
 
 pair<int, char> any_fn(input_t *text) {
     if (text->empty()) { return make_pair(-1, '\0'); }

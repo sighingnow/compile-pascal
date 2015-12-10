@@ -13,6 +13,7 @@
 #include <functional>
 #include <exception>
 #include <vector>
+#include "patch.hpp"
 
 #include "input_t.hpp"
 

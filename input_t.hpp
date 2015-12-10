@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <string>
+#include "patch.hpp"
+
 using namespace std;
 
 // Input stream model.

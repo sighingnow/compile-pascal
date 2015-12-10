@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <iostream>
 #include <string>
+#include "patch.hpp"
 
 // static maximum size
 template<size_t arg, size_t ... args>

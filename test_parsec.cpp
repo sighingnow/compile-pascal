@@ -4,6 +4,7 @@
 #include "parser.hpp"
 #include "combinator.hpp"
 #include "parse_tool.hpp"
+#include "patch.hpp"
 
 struct spaces {
     using parser_type = string;

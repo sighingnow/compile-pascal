@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <functional>
+#include "patch.hpp"
 using namespace std;
 
 // data type: Maybe
@@ -45,17 +46,17 @@ struct ValueT {
     string expected;
     bool strict;
 
-    string to_string(int n) const { return std::to_string(n); }
-    string to_string(char c) const { return string(1, c); }
-    string to_string(string s) const { return s; }
-    string to_string(vector<char> vec) const { string ans = "vector char: "; for (char c: vec) { ans.push_back(c); ans.push_back(','); } return ans; }
-    string to_string(vector<string> vec) const { string ans = "vector string: "; for (string s: vec) { ans += s + ","; } return ans; }
+    string str(int n) const { return to_string(n); }
+    string str(char c) const { return string(1, c); }
+    string str(string s) const { return s; }
+    string str(vector<char> vec) const { string ans = "vector char: "; for (char c: vec) { ans.push_back(c); ans.push_back(','); } return ans; }
+    string str(vector<string> vec) const { string ans = "vector string: "; for (string s: vec) { ans += s + ","; } return ans; }
 
     string name() const {
-        return "stream @ " + ::to_string(loc.first) + ":" + std::to_string(loc.second)
-            + ", " + (status ? "true" : "false") + ", length: " + std::to_string(len) + "\n"
-            + "    actual:   " + to_string(actual) + "\n"
-            + "    expected: " + to_string(expected) + "\n";
+        return "stream @ " + to_string(loc.first) + ":" + to_string(loc.second)
+            + ", " + (status ? "true" : "false") + ", length: " + to_string(len) + "\n"
+            + "    actual:   " + str(actual) + "\n"
+            + "    expected: " + str(expected) + "\n";
     }
 
     ValueT<V>(bool status, pair<int, int> loc, int len, V const & actual, string const & expected, bool const & strict = false)
