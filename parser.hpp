@@ -9,6 +9,10 @@
 #include "parse_tool.hpp"
 #include "patch.hpp"
 
+#ifdef PATCH
+    #define EOF (-1)
+#endif
+
 pair<int, char> any_fn(input_t *text) {
     if (text->empty()) { return make_pair(-1, '\0'); }
     // char k, c = text->at(0);
