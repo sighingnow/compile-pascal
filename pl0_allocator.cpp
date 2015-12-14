@@ -70,7 +70,7 @@ void SimpleAllocator::release(std::string name, bool is_reg) {
 string SimpleAllocator::load(std::string name, std::string target) {
     std::string now = this->exist(name);
     if (now != target) {
-        this->remap(name, target);
+        this->remap(target, name);
         if (now.length() == 0) {
             if (env.find(name, true)) {
                 out.emit("    mov " + target + ", dword " + this->addr(name));

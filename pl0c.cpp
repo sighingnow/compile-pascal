@@ -37,7 +37,6 @@ int main(int argc, char **argv) {
 
     if (!pl0_tac_program(res.actual)) {
         cout << "Errors occurred during semantic analysing." << endl;
-        return 0;
     }
 
     cout << "\n;; <<<<<<<<<<<<<  All Basic Blocks <<<<<<<<<<<<<<<<<<<<<<<<<<<\n" << endl;

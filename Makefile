@@ -28,7 +28,7 @@ DEBUG 								:= 0
 ifeq ($(DEBUG), 1)
 	CXXFLAGS 						+= -O0 -ggdb -DDEBUG -DTRACE
 else
-	CXXFLAGS						+= -O1 -DNDEBUG
+	CXXFLAGS						+= -O2 -DNDEBUG
 endif
 
 PATCH 								:= 0
@@ -47,13 +47,13 @@ UTILS								:= pl0_parser.o \
 .SECONDARY: $(UTILS)
 
 ## default target.
-all: googletest test
+all: dist
 
 googletest: $(LIBGTEST_DIR)
 	make --dir $(LIBGTEST_DIR) CXX=$(CXX)
 
-test: test_pl0_parser.out
-	$(foreach case, $^, ./$(case))
+test: googletest test test_pl0_parser.out
+	./test_pl0_parser.out
 .PHONY: test
 
 dist: pl0c.out
@@ -102,12 +102,17 @@ test-pas: dist $(allpas)
 .SECONDARY: a.asm
 
 compile: dist
-	pl0c.out pl0_cases/test_io_char.pas > a.asm
-	@make asm
+	pl0c.out pl0_cases/test.pas > a.asm
+	@make asm_gcc
 
-asm: a.asm
+asm_gcc: a.asm
 	nasm -f win32 a.asm -o a.obj
 	gcc a.obj -o a.exec
 	./a.exec
+
+asm_vclink: a.asm
+	nasm -f win32 a.asm -o a.obj
+	link a.obj msvcrt.lib
+	./a.exe
 
 

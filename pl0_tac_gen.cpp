@@ -173,7 +173,7 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
             irb.emit("function", scope_name());
             functb.push(func(scope_name(), f.first->type->type, functype)); // update symbol table
             proctb.tag(); functb.tag();
-            irb.emit("def", new Value(scope_name(), "string"), new Value("integer", "string"), new Value(-1, "integer"));
+            irb.emit("def", new Value(scope_name(), f.first->type->type), new Value("function", "string"), new Value(-1, "integer"));
             pl0_tac_prog(f.second);
             irb.emit("loadret", new Value(scope_name(), "string"));
             irb.emit("endfunc", new Value(scope_name(), "string"));
@@ -255,7 +255,7 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
         if (functb.find(stmt->id->id, true, f) == false) {
             pl0_ast_error(stmt->id->loc, string("use of undeclared function ") + "\"" + stmt->id->id + "\"");
         }
-        irb.emit("=", new Value(f.name, "string"), val);
+        irb.emit("=", new Value(f.name, f.rettype), val);
     }
     else {
         // just simple assign.
@@ -358,7 +358,7 @@ void pl0_tac_case_stmt(pl0_ast_case_stmt const *stmt) {
     }
     int endlabel = irb.makelabel();
     std::vector<int> labels;
-    for (auto item: stmt->terms) {
+    for (auto && item: stmt->terms) {
         labels.emplace_back(irb.makelabel());
     }
     labels.emplace_back(endlabel);
@@ -393,9 +393,9 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
         size_t len = args.size();
         for (size_t i = 0; i < len; ++i) {
             bool is_ref = p.param_t[len-1-i].length() > 4 && p.param_t[len-1-i].substr(0, 4) == "ref_";
-            if (args[i].second != (is_ref ? p.param_t[len-1-i].substr(4): p.param_t[len-1-i])) {
-                pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
-            }
+            // if (args[i].second != (is_ref ? p.param_t[len-1-i].substr(4): p.param_t[len-1-i])) {
+            //     pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
+            // }
             if (is_ref) {
                 if (args[i].first->t == Value::TYPE::IMM || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
@@ -643,9 +643,9 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
         size_t len = args.size();
         for (size_t i = 0; i < args.size(); ++i) {
             bool is_ref = fn.param_t[len-1-i].length() > 4 && fn.param_t[len-1-i].substr(0, 4) == "ref_";
-            if (args[i].second != (is_ref ? fn.param_t[len-1-i].substr(4) : fn.param_t[len-1-i])) {
-                pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
-            }
+            // if (args[i].second != (is_ref ? fn.param_t[len-1-i].substr(4) : fn.param_t[len-1-i])) {
+            //     pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
+            // }
             if (is_ref) {
                 if (args[i].first->t == Value::TYPE::IMM || args[i].first->sv[0] == '~') {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));

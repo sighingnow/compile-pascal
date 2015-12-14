@@ -18,6 +18,7 @@ ERROR When Parsing:
 4. an identifier can't be as same as anyone of the keywords.
 5. expected integer or char as the primitive data type. (parse primitive type)
 
+
 ERROR Recovery (skip while invalid)
 ---------------------
 

@@ -245,7 +245,6 @@ static int pl0_block_helper(std::vector<TAC> & code, std::vector<BasicBlock> & b
             || code[p].op == "function" || code[p].op == "procedure") {
         p = pl0_block_helper(code, bbs, p, pres, sufs);
     }
-    cout << ";; setBegin " << code[p].str() << endl;
     bbs[hidx].setBegin(code[p].rd->iv);
 
     while (code[p].op != "endproc" && code[p].op != "endfunc") {

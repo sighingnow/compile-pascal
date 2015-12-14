@@ -69,7 +69,7 @@ static void pl0_x86_gen_common(TAC & c) {
         old.pop_back(); dist = old.back(); old.pop_back();
     }
     else if (c.op == "=") {
-        std::string rs, rd = manager.load(c.rd->sv);
+        std::string rs, rd = manager.alloc(c.rd->sv);
         if (c.rs->t == Value::TYPE::IMM) {
             rs = c.rs->value();
         }
@@ -77,6 +77,9 @@ static void pl0_x86_gen_common(TAC & c) {
             rs = manager.locate(c.rs->sv);
         }
         out.emit(string("    mov ") + rd + ", " + rs, c);
+        if (c.rd->dt == "char") {
+            out.emit(string("    and ") + rd + ", 0x000000ff");
+        }
     }
     else if (c.op == "[]=") {
         std::string rt, rs, rd;
@@ -84,13 +87,13 @@ static void pl0_x86_gen_common(TAC & c) {
             rs = c.rs->value();
         }
         else {
-            rs = manager.load(c.rs->sv);
+            rs = manager.load(c.rs->sv, "edi");
         }
         if (c.rt->t == Value::TYPE::IMM) {
             rt = c.rt->value();
         }
         else {
-            rt = manager.load(c.rt->sv);
+            rt = manager.load(c.rt->sv, "esi");
         }
         rd = manager.locate(c.rd->sv);
         if (rd.substr(0, 3) == "dwo") {
@@ -102,12 +105,14 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(string("    mov ") + rd + ", " + rt, c);
     }
     else if (c.op == "=[]") {
-        std::string rt, rs, rd = manager.load(c.rd->sv);
+        cout << ";; #####  " << c.str() << endl;
+        std::string rt, rs, rd = manager.load(c.rd->sv, "esi");
         if (c.rt->t == Value::TYPE::IMM) {
             rt = c.rt->value();
         }
         else {
-            rt = manager.load(c.rt->sv);
+            cout << ";; #####" << endl;
+            rt = manager.load(c.rt->sv, "edi");
         }
         rs = manager.locate(c.rs->sv);
         if (rs.substr(0, 3) == "dwo") {
