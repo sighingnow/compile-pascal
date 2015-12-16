@@ -397,7 +397,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
             //     pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             // }
             if (is_ref) {
-                if (args[i].first->t == Value::TYPE::IMM || args[i].first->sv[0] == '~') {
+                if (args[i].first->t == Value::TYPE::IMM || (args[i].first->sv.back() != '#' && args[i].first->sv.front() == '~')) {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
                 pushes.emplace_back(make_pair(args[i].first, true));
@@ -590,8 +590,8 @@ pair<Value *, string> pl0_tac_factor(pl0_ast_factor const * factor) {
                 array.name = factor->arraye.first->id; // give it a default value, although it's wrong.
             }
             // validate array index.
-            idx = pl0_tac_expr(factor->arraye.second).first;                
-            t = new Value(irb.maketmp(), array.dt);
+            idx = pl0_tac_expr(factor->arraye.second).first;
+            t = new Value(irb.maketmp()+"#"+array.name+"#"+idx->value()+"#", array.dt);
             irb.emit("=[]", t, new Value(array.name, array.dt), idx);
             ans = make_pair(t, array.type.substr(0, array.type.length()-5));
             break;
@@ -647,7 +647,7 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
             //     pl0_ast_error(stmt->args->args[i]->loc, string("unmatched type of parameter and argument."));
             // }
             if (is_ref) {
-                if (args[i].first->t == Value::TYPE::IMM || args[i].first->sv[0] == '~') {
+                if (args[i].first->t == Value::TYPE::IMM || (args[i].first->sv.back() != '#' && args[i].first->sv.front() == '~')) {
                     pl0_ast_error(stmt->args->args[i]->loc, string("use constant or expression as reference value."));
                 }
                 pushes.emplace_back(make_pair(args[i].first, true));

@@ -96,7 +96,7 @@ static void pl0_x86_gen_common(TAC & c) {
             rt = manager.load(c.rt->sv, "esi");
         }
         rd = manager.locate(c.rd->sv);
-        if (rd.substr(0, 3) == "dwo") {
+        if (rd.length() >= 3 && rd.substr(0, 3) == "dwo") {
             rd = rd.substr(0, rd.length()-1) + "+4*" + rs + "]";
         }
         else {
@@ -105,17 +105,15 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(string("    mov ") + rd + ", " + rt, c);
     }
     else if (c.op == "=[]") {
-        cout << ";; #####  " << c.str() << endl;
         std::string rt, rs, rd = manager.load(c.rd->sv, "esi");
         if (c.rt->t == Value::TYPE::IMM) {
             rt = c.rt->value();
         }
         else {
-            cout << ";; #####" << endl;
             rt = manager.load(c.rt->sv, "edi");
         }
         rs = manager.locate(c.rs->sv);
-        if (rs.substr(0, 3) == "dwo") {
+        if (rs.length() >= 3 && rs.substr(0, 3) == "dwo") {
             rs = rs.substr(0, rs.length()-1) + "+4*" + rt + "]";
         }
         else {
@@ -131,13 +129,39 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(string("    mov eax, ") + c.rd->value(), c);
     }
     else if (c.op == "call") {
-        cout << ";; @@@@@@@@ " << dist << "  " << to_string(old.back() - dist) << endl;
         manager.spillAll();
         for (auto && a: c.args) { // push
             if (a.second) { // call by reference
-                manager.store(a.first->sv);
-                out.emit(string("    lea eax, ") + manager.addr(a.first->sv));
-                out.emit(string("    push eax"));
+                if (a.first->sv.back() == '#') {
+                    // array element.
+                    std::string t = a.first->sv, array, idx;
+                    t = t.substr(0, t.length()-1);
+                    int p = t.rfind('#');
+                    idx = t.substr(p+1);
+                    t = t.substr(0, p);
+                    p = t.rfind('#');
+                    if (idx.front() >= '0' && idx.front() <= '9') {
+                        out.emit(string("    mov edi, ") + idx);
+                    }
+                    else {
+                        manager.load(idx, "edi");
+                        manager.release("edi", true);
+                    }
+                    array = manager.locate(t.substr(p+1));
+                    if (array.length() >= 3 && array.substr(0, 3) == "dwo") {
+                        array = array.substr(6, array.length()-7) + "+4*" + idx + "]";
+                    }
+                    else {
+                        array = string("[") + array + "+4*" + idx + "]"; 
+                    }
+                    out.emit(string("    lea eax, ") + array);
+                    out.emit(string("    push eax"), c);
+                }
+                else {
+                    manager.store(a.first->sv);
+                    out.emit(string("    lea eax, ") + manager.addr(a.first->sv));
+                    out.emit(string("    push eax"));
+                }
             }
             else { // call by value.
                 if (a.first->t == Value::TYPE::IMM) {

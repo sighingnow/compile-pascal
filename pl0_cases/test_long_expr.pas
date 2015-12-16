@@ -128,7 +128,7 @@ begin
 	write("begin test char&int.");
 	p3;
 
-	write("begin test register arrange(if success, would print hello,world ).");
+	write("begin test register arrange(if success, would print hello, world).");
 	p4;
 end.
 
