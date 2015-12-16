@@ -13,7 +13,7 @@ struct input_t {
 private:
     string const & desc;
     int line, column;
-    string const text;
+    string text;
 public:
     input_t(string const text, int line = 1, int column = 1, string const & desc = "unknown input stream"): desc(desc), line(line), column(column), text(text) {}
     ~input_t() {}

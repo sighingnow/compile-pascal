@@ -55,7 +55,6 @@ struct ValueT {
     string name() const {
         return "stream @ " + to_string(loc.first) + ":" + to_string(loc.second)
             + ", " + (status ? "true" : "false") + ", length: " + to_string(len) + "\n"
-            + "    actual:   " + str(actual) + "\n"
             + "    expected: " + str(expected) + "\n";
     }
 
