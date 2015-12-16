@@ -131,6 +131,7 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(string("    mov eax, ") + c.rd->value(), c);
     }
     else if (c.op == "call") {
+        cout << ";; @@@@@@@@ " << dist << "  " << to_string(old.back() - dist) << endl;
         manager.spillAll();
         for (auto && a: c.args) { // push
             if (a.second) { // call by reference
@@ -143,10 +144,6 @@ static void pl0_x86_gen_common(TAC & c) {
                     out.emit(string("    push ") + a.first->value());
                 }
                 else if (manager.exist(a.first->sv).length() == 0) {
-                    manager.load(a.first->sv, "eax");
-                    out.emit(string("    push eax"));
-                }
-                else {
                     out.emit(string("    push ") + manager.locate(a.first->sv));
                 }
             }
@@ -158,10 +155,7 @@ static void pl0_x86_gen_common(TAC & c) {
         if (c.args.size() > 0) { // pop
             out.emit("    add esp, " + to_string(c.args.size() * 4));
         }
-        if (old.back() - dist > 0) {
-            out.emit(string("    add esp, ") + to_string(old.back() - dist));
-        }
-        dist = old.back(); old.pop_back();
+        // at the end of function call, merge two frame, so, don't restore $esp value.
     }
     else if (c.op == "read") {
         manager.spill("eax");
@@ -353,12 +347,18 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(comp, c);
     }
     else if (c.op == "label") {
-        old.emplace_back(dist);
+        if (c.rs == nullptr) {
+            old.emplace_back(dist);
+        }
+        else {
+            cout << ";; merge scope." << endl;
+        }
         out.emit(string("__L") + c.rd->value() + ":");
     }
     else if (c.op == "goto") {
         manager.spillAll();
         if (old.back() - dist > 0) {
+            cout << ";; ### " << dist << "  " << to_string(old.back() - dist) << endl;
             out.emit(string("    add esp, ") + to_string(old.back() - dist));
         }
         dist = old.back(); old.pop_back();
@@ -413,7 +413,7 @@ void pl0_x86_gen(std::string file, std::vector<BasicBlock> & bbs) {
     out.emit(string("    __fin_char:       db      \"%c\", 0x0"));
     out.emit(string("    __fin_string:     db      \"%s\", 0x0"));
     out.emit(string("    __fout_int:       db      \"%d\", 0xA, 0x0"));
-    out.emit(string("    __fout_char:      db      \"%c\", 0xA, 0x0"));
+    out.emit(string("    __fout_char:      db      \"%c\", 0x0"));
     out.emit(string("    __fout_string:    db      \"%s\", 0xA, 0x0"));
     out.emit(string(""));
     out.emit(string("section .data"));

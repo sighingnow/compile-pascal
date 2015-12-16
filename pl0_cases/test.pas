@@ -37,13 +37,11 @@ function f3:integer;
 						if e>= q then
 							if q<>q then
 							else
-								begin
-									for i:= 0 to 22 do
-										begin
-											w := q + a;
-											q := w;
-										end;
-								end
+								for i:= 0 to 22 do
+									begin
+										w := q + a;
+										q := w;
+									end
 						else
 					else
 				else 
@@ -77,7 +75,7 @@ procedure p3;
 			write("char&int handle failed.");
 	end;
 procedure p4;
-	var step,a1,a2,a3,a4,a5,a6,a7,a8,a9:integer;
+	var step,a1,a2,a3,a4,a5,a6,a7,a8,a9:char;
 	begin
 		a1 := f1(1); a2 := 2; a3 := f1(2); a4 := 4; a5 := 5; a6 := f1(a3); a7 := 7; a8 := 8; a9 := 9;
 		for step := 0 to 1 do
@@ -94,6 +92,7 @@ procedure p4;
 			end;
 			a1 := a1 + 103; a2 := a2 + 91; a3 := a3 + 97; a4 := a4 + 83; a5 := a5 - 1; a6 := a6 + 33; a7 := a7 + 43; a8 := a8 - 60; a9 := a9 - 69;
 			write(a1);write(a2);write(a3);write(a3);write(a4);write(a5);write(a6);write(a4);write(a7);write(a8);write(a9);
+			write("");
 	end;
 begin
 	write("begin test recursion.");
@@ -132,3 +131,4 @@ begin
 	write("begin test register arrange(if success, would print hello,world ).");
 	p4;
 end.
+

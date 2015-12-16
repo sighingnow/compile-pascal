@@ -408,7 +408,7 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
         }
     }
     irb.emit("call", new Value(p.name, "string"), pushes);
-    irb.emitlabel(irb.makelabel());
+    irb.emit("label", new Value(irb.makelabel(), "integer"), new Value("allsuffix", "string"));
 }
 
 void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
@@ -659,7 +659,7 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
     }
     string retval = irb.makeret();
     irb.emit("call", new Value(fn.name, "string"), pushes, new Value(retval, fn.rettype));
-    irb.emitlabel(irb.makelabel());
+    irb.emit("label", new Value(irb.makelabel(), "integer"), new Value("allsuffix", "string"));
     return make_pair(new Value(retval, fn.rettype), fn.rettype);
 }
 
