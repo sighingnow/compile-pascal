@@ -11,7 +11,7 @@ begin
             a := b;
             b := c;
         end;
-        fib := c
+        fib := c;
     end
     else begin
         if n = 0 then

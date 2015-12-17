@@ -259,6 +259,9 @@ void pl0_tac_assign_stmt(pl0_ast_assign_stmt const *stmt) {
     }
     else {
         // just simple assign.
+        if (stmt->id->id.front() == '^') {
+            pl0_ast_error(stmt->id->loc, string("illegal assign to loop variable"));
+        }
         if (vartb.find(stmt->id->id, true, var) == false) {
             pl0_ast_error(stmt->id->loc, string("use of undeclared identifier ") + "\"" + stmt->id->id + "\"");
         }
@@ -414,26 +417,29 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
 void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     cout << __func__;
     // code structure: compare -> execute -> compare again
-    int beginlabel = irb.makelabel();
+    int beginlabel = irb.makelabel(), frontlabel = irb.makelabel();
     int innerlabel = irb.makelabel();
-    int endlabel = irb.makelabel();
+    int endlabel = irb.makelabel(), taillabel = irb.makelabel();
+    pair<Value *, string> s = pl0_tac_expr(stmt->initial);
+    pair<Value *, string> t = pl0_tac_expr(stmt->end);
+    
     // validate loop iterator.
     variable var;
     if (vartb.find(stmt->iter->id, true, var) == false) {
         pl0_ast_error(stmt->iter->loc, string("undeclared identifier ") + "\"" + stmt->iter->id + "\"");
     }
-    pair<Value *, string> s = pl0_tac_expr(stmt->initial);
     if (s.second != "integer" && s.second != "char") {
         pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
     }
-    irb.emit("=", new Value(stmt->iter->id, var.dt), s.first);
-    irb.emit("goto", new Value("jmp", "string"), new Value(beginlabel, "integer"));
-    irb.emitlabel(beginlabel);
-    pair<Value *, string> t = pl0_tac_expr(stmt->end);
-    if (t.second != "integer" && t.second != "char") {
-        pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
+    irb.emit("cmp", new Value(frontlabel, "integer"), s.first, t.first);
+    if (stmt->step->val == 1) {
+        irb.emit("goto", new Value("jg", "string"), new Value(taillabel, "integer"));
     }
-    // add end value to symbol table.
+    else {
+        irb.emit("goto", new Value("jl", "string"), new Value(taillabel, "integer"));
+    }
+    irb.emitlabel(frontlabel);
+
     Value *end;
     if (t.first->t == Value::TYPE::STR && t.first->sv[0] == '~') {
         end = new Value("~" + t.first->sv, t.second);
@@ -443,6 +449,15 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     else {
         end = t.first;
     }
+
+    irb.emit("=", new Value(stmt->iter->id, var.dt), s.first);
+    irb.emit("goto", new Value("jmp", "string"), new Value(beginlabel, "integer"));
+    irb.emitlabel(beginlabel);
+    if (t.second != "integer" && t.second != "char") {
+        pl0_ast_error(stmt->end->loc, "use array as end value in for loop");
+    }
+    // add end value to symbol table.
+    
     irb.emit("cmp", new Value(innerlabel, "integer"), new Value(stmt->iter->id, var.dt), end);
     if (stmt->step->val == 1) {
         irb.emit("goto", new Value("jg", "string"), new Value(endlabel, "integer"));
@@ -456,6 +471,8 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     irb.emit("goto", new Value("jmp", "string"), new Value(beginlabel, "integer"));
     irb.emitlabel(endlabel);
     irb.emit("=", new Value(stmt->iter->id, var.dt), t.first);
+    irb.emit("goto", new Value("jmp", "string"), new Value(taillabel, "integer"));
+    irb.emitlabel(taillabel);
 }
 
 void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt) {

@@ -346,24 +346,22 @@ static void pl0_x86_gen_common(TAC & c) {
     }
     else if (c.op == "cmp") {
         manager.spillAll();
-        std::string comp;
+        std::string comp, rs = "esi", rt = "edi";
         if (c.rs->t == Value::TYPE::IMM) {
-            comp = string("    cmp ") + c.rs->value() + ", " + manager.locate(c.rt->sv);
-        }
-        else if (c.rt->t == Value::TYPE::IMM) {
-            comp = string("    cmp ") + manager.locate(c.rs->sv) + ", " + c.rt->value();
+            out.emit("    mov esi, " + c.rs->value());
         }
         else {
-            std::string t;
-            if (manager.exist(c.rs->sv).length() == 0 && manager.exist(c.rt->sv).length() == 0) {
-                t = manager.load(c.rs->sv);
-                manager.release(t, true);
-            }
-            else {
-                t = manager.locate(c.rs->sv);
-            }
-            comp = string("    cmp ") + t + ", " + manager.locate(c.rt->sv);
+            manager.load(c.rs->sv, "esi");
+            manager.release("esi", true);
         }
+        if (c.rt->t == Value::TYPE::IMM) {
+            out.emit("    mov edi, " + c.rt->value());
+        }
+        else {
+            manager.load(c.rt->sv, "edi");
+            manager.release("edi", true);
+        }
+        comp = string("    cmp esi, edi");
         if (old.back() - dist > 0) {
             out.emit(string("    add esp, ") + to_string(old.back() - dist));
             dist = old.back();
@@ -371,18 +369,17 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(comp, c);
     }
     else if (c.op == "label") {
+        out.emit(string("__L") + c.rd->value() + ":");
         if (c.rs == nullptr) {
             old.emplace_back(dist);
         }
         else {
-            cout << ";; merge scope." << endl;
+            // cout << ";; merge scope." << endl;
         }
-        out.emit(string("__L") + c.rd->value() + ":");
     }
     else if (c.op == "goto") {
         manager.spillAll();
         if (old.back() - dist > 0) {
-            cout << ";; ### " << dist << "  " << to_string(old.back() - dist) << endl;
             out.emit(string("    add esp, ") + to_string(old.back() - dist));
         }
         dist = old.back(); old.pop_back();
