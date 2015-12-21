@@ -4,7 +4,7 @@ var y, z, a: integer;
 function xel(var arg1, arg2: integer): integer;
 begin
     z := 2;
-	arg1 := arg1 + arg2 + x
+    arg1 := arg1 + arg2 + x
 end;
 
 begin

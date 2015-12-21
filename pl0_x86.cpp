@@ -80,6 +80,7 @@ static void pl0_x86_gen_common(TAC & c) {
         if (c.rd->dt == "char") {
             out.emit(string("    and ") + rd + ", 0x000000ff");
         }
+        manager.spill(rd);
     }
     else if (c.op == "[]=") {
         std::string rt, rs, rd;
@@ -103,6 +104,7 @@ static void pl0_x86_gen_common(TAC & c) {
             rd = string("dword [") + rd + "+4*" + rs + "]"; 
         }
         out.emit(string("    mov ") + rd + ", " + rt, c);
+        manager.spill(rd);
     }
     else if (c.op == "=[]") {
         std::string rt, rs, rd = manager.load(c.rd->sv, "esi");
@@ -120,6 +122,7 @@ static void pl0_x86_gen_common(TAC & c) {
             rs = string("dword [") + rs + "+4*" + rt + "]"; 
         }
         out.emit(string("    mov ") + rd + ", " + rs, c);
+        manager.spill(rd);
     }
     else if (c.op == "loadret") {
         manager.spillAll();

@@ -431,6 +431,8 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
     if (s.second != "integer" && s.second != "char") {
         pl0_ast_error(stmt->initial->loc, "use array as initial value in for loop");
     }
+
+////////////////////////////////////////////////////////////////////////////////////
     irb.emit("cmp", new Value(frontlabel, "integer"), s.first, t.first);
     if (stmt->step->val == 1) {
         irb.emit("goto", new Value("jg", "string"), new Value(taillabel, "integer"));
@@ -439,6 +441,7 @@ void pl0_tac_for_stmt(pl0_ast_for_stmt const *stmt) {
         irb.emit("goto", new Value("jl", "string"), new Value(taillabel, "integer"));
     }
     irb.emitlabel(frontlabel);
+/////////////////////////////////////////////////////////////////////////////////////
 
     Value *end;
     if (t.first->t == Value::TYPE::STR && t.first->sv[0] == '~') {
