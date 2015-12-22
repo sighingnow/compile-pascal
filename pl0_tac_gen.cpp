@@ -489,7 +489,7 @@ void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt) {
         if (var.len != -1) {
             pl0_ast_error(id->loc, string("expected an non-array identifier ") + "\"" + id->id + "\"");
         }
-        irb.emit("read", id->id);
+        irb.emit("read", new Value(id->id, var.dt));
     }
 }
 
@@ -526,6 +526,7 @@ pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
         needtmp = false; // no more temporary variable.
     }
     if (expr->terms.size() > 1) {
+        head.second = "integer"; // type casting.
         for (size_t i = 1; i < expr->terms.size(); ++i) {
             if (needtmp) { ans = new Value(irb.maketmp(), head.second); }
             auto element = pl0_tac_term(expr->terms[i].second);
@@ -536,6 +537,7 @@ pair<Value *, string> pl0_tac_expr(pl0_ast_expression const *expr) {
             needtmp = false; // no more temporary variable.
         }
     }
+    ans->dt = head.second;
     return make_pair(ans, head.second);
 }
 
@@ -545,6 +547,7 @@ pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
     pair<Value *, string> head = pl0_tac_factor(term->factors[0].second);
     Value *ans = head.first, *prev = head.first;
     if (term->factors.size() > 1) {
+        head.second = "integer"; // type casting.
         for (size_t i = 1; i < term->factors.size(); ++i) {
             if (needtmp) { ans = new Value(irb.maketmp(), head.second); }
             auto element = pl0_tac_factor(term->factors[i].second);
@@ -555,6 +558,7 @@ pair<Value *, string> pl0_tac_term(pl0_ast_term const *term) {
             needtmp = false; // no more temporary variable.
         }
     }
+    ans->dt = head.second;
     return make_pair(ans, head.second);
 }
 

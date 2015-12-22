@@ -152,7 +152,7 @@ static void pl0_x86_gen_common(TAC & c) {
                     }
                     array = manager.locate(t.substr(p+1));
                     if (array.length() >= 3 && array.substr(0, 3) == "dwo") {
-                        array = array.substr(6, array.length()-7) + "+4*" + idx + "]";
+                        array = array.substr(6, array.length()-7) + "+4*edi]";
                     }
                     else {
                         array = string("[") + array + "+4*" + idx + "]"; 
@@ -190,6 +190,7 @@ static void pl0_x86_gen_common(TAC & c) {
         manager.spill("edx");
         manager.store(c.rd->sv);
         out.emit(string("    lea eax, ") + manager.addr(c.rd->sv));
+        cout << ";; " << c.rd->str() << endl;
         out.emit(string("    push dword eax"));
         if (c.rd->dt == "integer") {
             out.emit(string("    push dword __fin_int"));
