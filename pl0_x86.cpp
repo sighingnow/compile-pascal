@@ -119,7 +119,7 @@ static void pl0_x86_gen_common(TAC & c) {
             rs = rs.substr(0, rs.length()-1) + "+4*" + rt + "]";
         }
         else {
-            rs = string("dword [") + rs + "+4*" + rt + "]"; 
+            rs = string("dword [") + rs + "+4*" + rt + "]";
         }
         out.emit(string("    mov ") + rd + ", " + rs, c);
         manager.spill(rd);
@@ -321,7 +321,15 @@ static void pl0_x86_gen_common(TAC & c) {
         manager.spill("eax");
         manager.spill("edx");
         out.emit(string("    mov edx, 0"));
-        std::string rt = c.rt->t == Value::TYPE::IMM ? c.rt->value() : manager.locate(c.rt->sv);
+        std::string rt;
+        if (c.rt->t == Value::TYPE::IMM) {
+            manager.spill("ebx");
+            out.emit(string("    mov ebx, ") + c.rt->value());
+            rt = "ebx";
+        }
+        else {
+            rt = manager.locate(c.rt->sv);
+        }
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
@@ -336,7 +344,15 @@ static void pl0_x86_gen_common(TAC & c) {
         manager.spill("eax");
         manager.spill("edx");
         out.emit(string("    mov edx, 0"));
-        std::string rt = c.rt->t == Value::TYPE::IMM ? c.rt->value() : manager.locate(c.rt->sv);
+        std::string rt;
+        if (c.rt->t == Value::TYPE::IMM) {
+            manager.spill("ebx");
+            out.emit(string("    mov eax, ") + c.rt->value());
+            rt = "ebx";
+        }
+        else {
+            rt = manager.locate(c.rt->sv);
+        }
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
