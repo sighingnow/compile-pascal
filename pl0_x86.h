@@ -43,7 +43,6 @@ public:
         return std::rand() % N;
     }
     string exist(std::string name) {
-        // if (name == "~ret") { return "eax"; }
         for (auto && x: record) {
             if (x.second == name) {
                 return x.first;

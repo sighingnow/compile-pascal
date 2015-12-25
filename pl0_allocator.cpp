@@ -23,8 +23,8 @@ string SimpleAllocator::alloc(std::string name, bool is_ref) {
     LOC loc;
     for (auto && r: regs) {
         if (!used[r] || record[r] == name) {
-            if (is_ref && r == "eax") {
-                continue; // don't map eax to a variable with reference type.
+            if (is_ref && r == "ebx") {
+                continue; // don't map ebx to a variable with reference type.
             }
             used[r] = true;
             this->record[r] = name;
@@ -32,8 +32,8 @@ string SimpleAllocator::alloc(std::string name, bool is_ref) {
         }
     }
     std::string r = regs[this->random()];
-    if (is_ref && r == "eax") {
-        r = "ebx";  // don't map eax to a variable with reference type.
+    if (is_ref && r == "ebx") {
+        r = "ecx";  // don't map ebx to a variable with reference type.
     }
     this->spill(r);
     this->used[r] = true;
@@ -167,21 +167,21 @@ std::string SimpleAllocator::addr(std::string name) {
     env.find(name, true, loc);
     if (d == env.depth()) {
         if (loc.is_ref) {
-            this->spill("eax");
-            out.emit("    mov eax, dword [ebp" + loc.offset +"]");
-            return "[eax]";
+            this->spill("ebx");
+            out.emit("    mov ebx, dword [ebp" + loc.offset +"]");
+            return "[ebx]";
         }
         else {
             return "[ebp" + loc.offset + "]";
         }
     }
     else {
-        this->spill("eax");
-        out.emit("    mov eax, dword [ebp-" + to_string(d*4) + "]");
+        this->spill("ebx");
+        out.emit("    mov ebx, dword [ebp-" + to_string(d*4) + "]");
         if (loc.is_ref) {
-            out.emit("    mov eax, dword [eax" + loc.offset + "]");
+            out.emit("    mov ebx, dword [ebx" + loc.offset + "]");
         }
-        return "[eax" + loc.offset + "]";
+        return "[ebx" + loc.offset + "]";
     }
 }
 

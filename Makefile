@@ -83,26 +83,33 @@ clean:
 	@./$@
 	@rm -f $@
 
-allpas		:= test_null_stmt.exec \
-			test_for1.exec \
-			test_for2.exec \
-			test_recursive.exec \
-			test_sum1.exec \
-			test_fib1.exec \
-			test_fib2.exec \
-			test_mul_div.exec \
-			test_ref1.exec \
-			test_ref2.exec \
-			test_ref3.exec \
-			test_array1.exec \
-			test_case1.exec \
-			test_swap1.exec \
-			test_io_char.exec \
-			test_long_expr.exec \
-			test_array_e_ref.exec \
-			test_imm.pas
+ht_cases		:= test_null_stmt.exec \
+				test_for1.exec \
+				test_for2.exec \
+				test_recursive.exec \
+				test_sum1.exec \
+				test_fib1.exec \
+				test_fib2.exec \
+				test_mul_div.exec \
+				test_ref1.exec \
+				test_ref2.exec \
+				test_ref3.exec \
+				test_array1.exec \
+				test_case1.exec \
+				test_swap1.exec \
+				test_io_char.exec \
+				test_array_e_ref.exec \
+				test_imm.exec \
+				test_div.exec \
 
-test-pas: dist $(allpas)
+luotg_cases		:= luotg_test_1.exec
+
+romise_cases	:= romise_test_1.exec \
+				romise_test_2.exec \
+
+allcases		:= $(ht_cases) $(luotg_cases) $(romise_cases)
+
+test-pas: dist $(allcases)
 
 .SECONDARY: a.asm
 

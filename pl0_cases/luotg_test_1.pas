@@ -101,23 +101,20 @@ begin
 	then 
 		write("recursion success.")
 	else
-		write("recursion failed.");
+		write("recursion failed.", retval);
 
-	write("begin test array.");
 	retval := f2;
 	if retval = 233 then
 		write("array operation right.")
 	else
-		write("array operation failed.");
+		write("array operation failed.", retval);
 
-	write("begin test jump label.");
 	retval := f3;
 	if retval = 23 then
 		write("Jump label set success.")
 	else
-		write("Jump label set failed.");
+		write("Jump label set failed.", retval);
 
-	write("begin test var parameter.");
 	i := 0;
 	p2(i);
 	if i = 2 then
@@ -125,9 +122,7 @@ begin
 	else
 		write("var parameter failed.");
 
-	write("begin test char&int.");
 	p3;
-
 	write("begin test register arrange(if success, would print hello, world).");
 	p4;
 end.

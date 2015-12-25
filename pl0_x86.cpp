@@ -42,9 +42,9 @@ static void pl0_x86_gen_header(BasicBlock & bb, std::vector<std::string> & buffe
     // prepare displays.
     int d = runtime.depth();
     runtime.push(LOC(string("$fn") + bb.code[p].rd->sv, d));
-    buffer.emplace_back("    mov eax, dword [ebp]");
+    buffer.emplace_back("    mov ebx, dword [ebp]");
     for (int i = 1; i < d; ++i) {
-        buffer.emplace_back("    push dword [eax-" + to_string(i*4) + "]");
+        buffer.emplace_back("    push dword [ebx-" + to_string(i*4) + "]");
     }
     dist = dist - 4 * d;
     buffer.emplace_back("    push ebp");
@@ -157,13 +157,13 @@ static void pl0_x86_gen_common(TAC & c) {
                     else {
                         array = string("[") + array + "+4*" + idx + "]"; 
                     }
-                    out.emit(string("    lea eax, ") + array);
-                    out.emit(string("    push eax"), c);
+                    out.emit(string("    lea ebx, ") + array);
+                    out.emit(string("    push ebx"), c);
                 }
                 else {
                     manager.store(a.first->sv);
-                    out.emit(string("    lea eax, ") + manager.addr(a.first->sv));
-                    out.emit(string("    push eax"));
+                    out.emit(string("    lea ebx, ") + manager.addr(a.first->sv));
+                    out.emit(string("    push ebx"));
                 }
             }
             else { // call by value.
@@ -303,17 +303,17 @@ static void pl0_x86_gen_common(TAC & c) {
     else if (c.op == "*") {
         manager.spill("eax");
         manager.spill("edx");
-        if (c.rt->t == Value::TYPE::IMM) {
-            out.emit(string("    mov edx, ") + c.rt->value());
-        }
-        else {
-            out.emit(string("    mov edx, ") + manager.locate(c.rt->sv));
-        }
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
         else {
             out.emit(string("    mov eax, ") + manager.locate(c.rs->sv));
+        }
+        if (c.rt->t == Value::TYPE::IMM) {
+            out.emit(string("    mov edx, ") + c.rt->value());
+        }
+        else {
+            out.emit(string("    mov edx, ") + manager.locate(c.rt->sv));
         }
         out.emit(string("    imul edx"), c);
         manager.remap("eax", c.rd->sv);
@@ -323,19 +323,19 @@ static void pl0_x86_gen_common(TAC & c) {
         manager.spill("edx");
         out.emit(string("    mov edx, 0"));
         std::string rt;
-        if (c.rt->t == Value::TYPE::IMM) {
-            manager.spill("ebx");
-            out.emit(string("    mov ebx, ") + c.rt->value());
-            rt = "ebx";
-        }
-        else {
-            rt = manager.locate(c.rt->sv);
-        }
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
         else {
             out.emit(string("    mov eax, ") + manager.locate(c.rs->sv));
+        }
+        if (c.rt->t == Value::TYPE::IMM) {
+            manager.spill("ecx");
+            out.emit(string("    mov ecx, ") + c.rt->value());
+            rt = "ecx";
+        }
+        else {
+            rt = manager.locate(c.rt->sv);
         }
         out.emit("    cdq");
         out.emit("    idiv " + rt, c);
@@ -346,19 +346,19 @@ static void pl0_x86_gen_common(TAC & c) {
         manager.spill("edx");
         out.emit(string("    mov edx, 0"));
         std::string rt;
-        if (c.rt->t == Value::TYPE::IMM) {
-            manager.spill("ebx");
-            out.emit(string("    mov eax, ") + c.rt->value());
-            rt = "ebx";
-        }
-        else {
-            rt = manager.locate(c.rt->sv);
-        }
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
         else {
             out.emit(string("    mov eax, ") + manager.locate(c.rs->sv));
+        }
+        if (c.rt->t == Value::TYPE::IMM) {
+            manager.spill("ecx");
+            out.emit(string("    mov ecx, ") + c.rt->value());
+            rt = "ecx";
+        }
+        else {
+            rt = manager.locate(c.rt->sv);
         }
         out.emit(string("    cdq")); // Convert double-word to quad-word
         out.emit(string("    idiv ") + rt, c);
