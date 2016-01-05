@@ -170,7 +170,7 @@ void pl0_tac_function_stmt(pl0_ast_function_stmt const *stmts) {
         else {
             scope.emplace_back(fid); // update global scope.
             vector<string> functype = pl0_tac_function_header(f.first);
-            irb.emit("function", scope_name());
+            irb.emit("function", new Value(scope_name(), "string"));
             functb.push(func(scope_name(), f.first->type->type, functype)); // update symbol table
             proctb.tag(); functb.tag();
             irb.emit("def", new Value(scope_name(), f.first->type->type), new Value("function", "string"), new Value(-1, "integer"));
@@ -489,6 +489,7 @@ void pl0_tac_read_stmt(pl0_ast_read_stmt const *stmt) {
         if (var.len != -1) {
             pl0_ast_error(id->loc, string("expected an non-array identifier ") + "\"" + id->id + "\"");
         }
+        irb.emit("=", new Value(id->id, var.dt), new Value(0, var.dt));
         irb.emit("read", new Value(id->id, var.dt));
     }
 }

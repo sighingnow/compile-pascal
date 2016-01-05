@@ -18,12 +18,12 @@ void pl0_x86_gen(std::string, std::vector<BasicBlock> &);
 class RegisterAllocator
 {
 protected:
-    static const int N = 6;
+    static const int N = 5 /* 6 */;
     pl0_env<LOC> & env;
     struct IOOut & out;
     int & dist;
     // %eax, %ecx, %edx, %ebx, %esi, %edi
-    std::string regs[N] = {"eax", "ecx", "edx", "ebx", "esi", "edi"};
+    std::string regs[N] = {"eax", "ecx", "edx", /* "ebx", */ "esi", "edi"};
     std::map<std::string, bool> used;
     std::map<std::string, std::string> record;
 public:

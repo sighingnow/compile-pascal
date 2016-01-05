@@ -2,7 +2,6 @@
 
 static IOOut out;
 
-// static int p = 0;
 static int dist = 0;
 static std::vector<int> old;
 static pl0_env<LOC> runtime;
@@ -77,13 +76,13 @@ static void pl0_x86_gen_common(TAC & c) {
             rs = manager.locate(c.rs->sv);
         }
         out.emit(string("    mov ") + rd + ", " + rs, c);
-        if (c.rd->dt == "char") {
-            out.emit(string("    and ") + rd + ", 0x000000ff");
-        }
+        // if (c.rd->dt == "char") {
+        //     out.emit(string("    and ") + rd + ", 0x000000ff");
+        // }
         manager.spill(rd);
     }
     else if (c.op == "[]=") {
-        std::string rt, rs, rd;
+        std::string rs = "edi", rt = "esi", rd;
         if (c.rs->t == Value::TYPE::IMM) {
             rs = c.rs->value();
         }
@@ -104,10 +103,9 @@ static void pl0_x86_gen_common(TAC & c) {
             rd = string("dword [") + rd + "+4*" + rs + "]"; 
         }
         out.emit(string("    mov ") + rd + ", " + rt, c);
-        manager.spill(rd);
     }
     else if (c.op == "=[]") {
-        std::string rt, rs, rd = manager.load(c.rd->sv, "esi");
+        std::string rt = "edi", rs, rd = manager.load(c.rd->sv, "esi");
         if (c.rt->t == Value::TYPE::IMM) {
             rt = c.rt->value();
         }
@@ -185,13 +183,10 @@ static void pl0_x86_gen_common(TAC & c) {
         // at the end of function call, merge two frame, so, don't restore $esp value.
     }
     else if (c.op == "read") {
-        manager.spill("eax");
-        manager.spill("ecx");
-        manager.spill("edx");
+        manager.spillAll();
         manager.store(c.rd->sv);
-        out.emit(string("    lea eax, ") + manager.addr(c.rd->sv));
-        cout << ";; " << c.rd->str() << endl;
-        out.emit(string("    push dword eax"));
+        out.emit(string("    lea ebx, ") + manager.addr(c.rd->sv));
+        out.emit(string("    push dword ebx"));
         if (c.rd->dt == "integer") {
             out.emit(string("    push dword __fin_int"));
         }
@@ -202,9 +197,7 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(string("    add esp, 8\t\t;; pop stack at once."));
     }
     else if (c.op == "write_e") {
-        manager.spill("eax");
-        manager.spill("ecx");
-        manager.spill("edx");
+        manager.spillAll();
         if (c.rd->t == Value::TYPE::IMM) {
             out.emit(string("    push ") + c.rd->value());
         }
@@ -221,9 +214,7 @@ static void pl0_x86_gen_common(TAC & c) {
         out.emit(string("    add esp, 8\t\t;; pop stack at once."));
     }
     else if (c.op == "write_s") {
-        manager.spill("eax");
-        manager.spill("ecx");
-        manager.spill("edx");
+        manager.spillAll();
         asciis.emplace_back(make_pair(c.rd->sv, c.rs->value()));
         out.emit(string("    push dword __L") + c.rs->value());
         out.emit(string("    push dword __fout_string"));
@@ -320,9 +311,10 @@ static void pl0_x86_gen_common(TAC & c) {
     }
     else if (c.op == "/") {
         manager.spill("eax");
+        manager.spill("ecx");
         manager.spill("edx");
         out.emit(string("    mov edx, 0"));
-        std::string rt;
+        std::string rt = "ecx";
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
@@ -330,12 +322,10 @@ static void pl0_x86_gen_common(TAC & c) {
             out.emit(string("    mov eax, ") + manager.locate(c.rs->sv));
         }
         if (c.rt->t == Value::TYPE::IMM) {
-            manager.spill("ecx");
             out.emit(string("    mov ecx, ") + c.rt->value());
-            rt = "ecx";
         }
         else {
-            rt = manager.locate(c.rt->sv);
+            manager.load(c.rt->sv, "ecx");
         }
         out.emit("    cdq");
         out.emit("    idiv " + rt, c);
@@ -343,9 +333,10 @@ static void pl0_x86_gen_common(TAC & c) {
     }
     else if (c.op == "%") {
         manager.spill("eax");
+        manager.spill("ecx");
         manager.spill("edx");
         out.emit(string("    mov edx, 0"));
-        std::string rt;
+        std::string rt = "ecx";
         if (c.rs->t == Value::TYPE::IMM) {
             out.emit(string("    mov eax, ") + c.rs->value());
         }
@@ -353,12 +344,10 @@ static void pl0_x86_gen_common(TAC & c) {
             out.emit(string("    mov eax, ") + manager.locate(c.rs->sv));
         }
         if (c.rt->t == Value::TYPE::IMM) {
-            manager.spill("ecx");
             out.emit(string("    mov ecx, ") + c.rt->value());
-            rt = "ecx";
         }
         else {
-            rt = manager.locate(c.rt->sv);
+            manager.load(c.rt->sv, "ecx");
         }
         out.emit(string("    cdq")); // Convert double-word to quad-word
         out.emit(string("    idiv ") + rt, c);
@@ -444,6 +433,7 @@ void pl0_x86_gen(std::string file, std::vector<BasicBlock> & bbs) {
     out.emit(string(";; external functions (from standard C library)"));
     out.emit(string("    extern _scanf"));
     out.emit(string("    extern _printf"));
+    out.emit(string("    extern _getchar"));
     out.emit(string(""));
     out.emit(string("section .text"));
     pl0_x86_gen_blocks(bbs);

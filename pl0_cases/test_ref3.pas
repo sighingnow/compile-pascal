@@ -14,6 +14,6 @@ begin
     if y = 32 then
         write("reference argument 3 success.")
     else
-        write("reference argument 3 failed.", a)
+        write("reference argument 3 failed.", y)
     ;
 end.

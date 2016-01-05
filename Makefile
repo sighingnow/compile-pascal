@@ -87,20 +87,21 @@ ht_cases		:= test_null_stmt.exec \
 				test_for1.exec \
 				test_for2.exec \
 				test_recursive.exec \
-				test_sum1.exec \
+				test_sum.exec \
 				test_fib1.exec \
 				test_fib2.exec \
 				test_mul_div.exec \
 				test_ref1.exec \
 				test_ref2.exec \
 				test_ref3.exec \
-				test_array1.exec \
-				test_case1.exec \
-				test_swap1.exec \
+				test_array.exec \
+				test_case.exec \
+				test_swap.exec \
 				test_io_char.exec \
 				test_array_e_ref.exec \
 				test_imm.exec \
 				test_div.exec \
+				test_gcd.exec \
 
 luotg_cases		:= luotg_test_1.exec
 
@@ -114,7 +115,7 @@ test-pas: dist $(allcases)
 .SECONDARY: a.asm
 
 compile: dist
-	pl0c.out pl0_cases/test_imm.pas > a.asm
+	pl0c.out pl0_cases/simple.pas > a.asm
 	@make asm_gcc
 
 asm_gcc: a.asm
@@ -126,5 +127,6 @@ asm_vclink: a.asm
 	nasm -f win32 a.asm -o a.obj
 	link a.obj msvcrt.lib
 	./a.exe
+
 
 

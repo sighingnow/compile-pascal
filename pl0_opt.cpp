@@ -156,14 +156,21 @@ void BasicBlock::solveDAG() {
         for (auto && s: G[sel].sons) {
             G[s].lessFa();
         }
-        int l = G[sel].lhs;
-        while (l != -1 && !G[l].used && G[l].noFa()) {
-            Q.emplace(Q.begin(), l); G[l].used = true;
-            for (auto && s: G[l].sons) {
-                G[s].lessFa();
-            }
-            l = G[l].lhs;
-        }
+
+        // Why the heuristic ordering will fail for the following case:
+        //
+        //      t = a
+        //      a = b
+        //      b = t
+
+        // int l = G[sel].lhs;
+        // while (l != -1 && !G[l].used && G[l].noFa()) {
+        //     Q.emplace(Q.begin(), l); G[l].used = true;
+        //     for (auto && s: G[l].sons) {
+        //         G[s].lessFa();
+        //     }
+        //     l = G[l].lhs;
+        // }
     }
     std::vector<TAC> irs;
     for (int i = 0; i < this->s; ++i) {

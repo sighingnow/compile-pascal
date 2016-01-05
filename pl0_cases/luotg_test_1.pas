@@ -60,21 +60,6 @@ procedure p2(var b :integer);
 		p1(b);
 	end;
 procedure p3;
-	begin
-		retval := f12(12345678);
-		if retval = 78 then
-			begin
-				num := 12345678;
-				c := num;
-				if c = 78 then
-					write("char&int handle test success.")
-				else
-					write("char&int handle failed.");
-			end
-		else
-			write("char&int handle failed.");
-	end;
-procedure p4;
 	var step,a1,a2,a3,a4,a5,a6,a7,a8,a9:char;
 	begin
 		a1 := f1(1); a2 := 2; a3 := f1(2); a4 := 4; a5 := 5; a6 := f1(a3); a7 := 7; a8 := 8; a9 := 9;
@@ -122,8 +107,7 @@ begin
 	else
 		write("var parameter failed.");
 
-	p3;
 	write("begin test register arrange(if success, would print hello, world).");
-	p4;
+	p3;
 end.
 

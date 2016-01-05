@@ -26,6 +26,14 @@ begin
 end;
 
 begin
-    read(a, b);
-    write(gcd(a, b));
+    if gcd(456, 8910) = 6 then
+        write("gcd-1 success.")
+    else
+        write("gcd-1 failed.", gcd(456, 8910))
+    ;
+    if gcd(3456, 78910) = 2 then
+        write("gcd-2 success.")
+    else
+        write("gcd-2 failed.", gcd(3456, 78910))
+    ;
 end.
