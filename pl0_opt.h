@@ -11,46 +11,33 @@ using namespace std;
 
 struct DAGNode {
     int no, fa;
-    bool used;
-    std::vector<Value *> attr;
+    bool used, leaf;
+    Value *item;
+    std::vector<Value *> items;
     string op;
     int lhs, rhs;
-    std::vector<int> sons;
-    DAGNode(): no(-1), fa(0), used(false), op(""), lhs(-1), rhs(-1) {}
-    DAGNode(int no, Value *val): no(no), fa(0), used(false), op(""), lhs(-1), rhs(-1) { attr.emplace_back(val); }
-    DAGNode(int no, Value *val, string op, int lhs, int rhs = -1): no(no), fa(0), used(false), op(op), lhs(lhs), rhs(rhs) { attr.emplace_back(val); }
+    DAGNode(int no, Value *val): no(no), fa(0), used(false), leaf(true), item(val), op(""), lhs(-1), rhs(-1) {
+        // ...
+    }
+    DAGNode(int no, std::string op, Value *val, int lhs, int rhs): no(no), fa(0), leaf(false), item(val), op(op), lhs(lhs), rhs(rhs) {
+        // ...
+    }
     string const str() const {
-        string ans = string("Node ") + to_string(no) + string(": ");
+        string ans = string("Node ") + to_string(no) + string(", fa~") + to_string(fa) + " : ";
         ans += op + " ";
-        ans += to_string(lhs) + " " + to_string(rhs) + " -> [";
-        for (auto && v: attr) {
+        ans += to_string(lhs) + " " + to_string(rhs) + " -> [" + item->str() + ", ";
+        for (auto && v: items) {
             ans += v->str() + ", ";
         }
-        ans += "], fa: " + to_string(fa);
+        ans += "]";
         return ans;
     }
-    void addAttr(Value *val) {
-        this->attr.emplace_back(val);
+    void addItem(Value *val) {
+        this->items.emplace_back(val);
     }
-    void finalizeAttr() {
-        auto iter = std::find_if(attr.begin(), attr.end(), [](Value *val) {
-            return val->t == Value::TYPE::IMM || val->sv[0] != '~' || (val->sv.length() >= 2 && val->sv[1] == '~');
-        });
-        if (iter == attr.end()) {
-            attr.resize(1);
-        }
-        else {
-            for (size_t i = 0; i < attr.size(); ++i) {
-                if (attr[i]->sv[0] == '~') {
-                    attr.erase(attr.begin() + i--);
-                }
-            }
-        }
-    }
-    void addSon(int s) { this->sons.emplace_back(s); }
     void moreFa() { this->fa++; }
     void lessFa() { this->fa--; }
-    bool noFa() const { return this->fa == 0; }
+    bool ready() const { return this->fa == 0; }
 };
 
 class BasicBlock {
@@ -61,6 +48,7 @@ public:
     std::vector<TAC> code;
     std::vector<int> prefix, suffix;
     std::vector<DAGNode> G;
+    std::map<Value, int> record;
     std::vector<std::pair<int, TAC>> IOBuf;
 public:
     BasicBlock(int const no, bool const canopt): no(no), canopt(canopt), is_end(false), begin(0), end(0), s(1), t(-1) {}
@@ -74,6 +62,12 @@ public:
     void DAGPass();
 private:
     void buildDAG();
+    void addNode();
+    int findNode(Value *);
+    int findNode(std::string op, Value *val, int lhs, int rhs);
+    void trans(std::vector<TAC> & irs, int nno);
+    void releaseLeaf(std::vector<TAC> & irs, Value *item);
+    void setMap(Value *, int);
     void solveDAG();
 };
 

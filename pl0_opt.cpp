@@ -49,174 +49,177 @@ void BasicBlock::setSuffix(std::vector<int> & suffix) {
 
 void BasicBlock::buildDAG() {
     size_t p = this->s;
-    std::map<Value, int> record;
     int rd, rs, rt, t;
-    for (p = 1; code[p].op != "goto" && code[p].op != "call"
+    for (p = 1; code[p].op != "cmp" && code[p].op != "goto" && code[p].op != "call"
             && code[p].op != "loadret" && code[p].op != "exit" && code[p].op != "endproc"; ++p)
     {
         if (code[p].op == "*" || code[p].op == "/" || code[p].op == "%"
                 || code[p].op == "+" || code[p].op == "-"
                 || code[p].op == "cmp"
                 || code[p].op == "=[]" || code[p].op == "[]=") {
-            // find left operand.
-            if (record.count(*(code[p].rs)) == 0) {
-                rs = G.size();
-                G.emplace_back(DAGNode(rs, code[p].rs));
-                record.emplace(*(code[p].rs), rs);
-            }
-            else {
-                rs = record[*(code[p].rs)];
-            }
-            // find right operand.
-            if (record.count(*(code[p].rt)) == 0) {
-                rt = G.size();
-                G.emplace_back(DAGNode(rt, code[p].rt));
-                record.emplace(*(code[p].rt), rt);
-            }
-            else {
-                rt = record[*(code[p].rt)];
-            }
-            // find op and target.
-            auto iter = std::find_if(G.begin(), G.end(), [&](DAGNode & node) {
-                return code[p].op == node.op && rs == node.lhs && rt == node.rhs;
-            });
-            if (iter == G.end()) {
-                rd = G.size();
-                G.emplace_back(DAGNode(rd, code[p].rd, code[p].op, rs, rt));
-            }
-            else {
-                rd = iter - G.begin();
-                G[rd].addAttr(code[p].rd);
-            }
-            G[rs].moreFa(); G[rt].moreFa();
-            G[rd].addSon(rs); G[rd].addSon(rt);
-            record[*(code[p].rd)] = rd; // insert or assign (replace)
+            rs = findNode(code[p].rs);
+            setMap(code[p].rs, rs);
+            rt = findNode(code[p].rt);
+            setMap(code[p].rt, rt);
+            rd = findNode(code[p].op, code[p].rd, rs, rt);
+            setMap(code[p].rd, rd);
         }
         else if (code[p].op == "=") {
-            if (record.count(*(code[p].rs)) == 0) {
-                rs = G.size();
-                G.emplace_back(DAGNode(rs, code[p].rs));
-                record.emplace(*(code[p].rs), rs);
-            }
-            else {
-                rs = record[*(code[p].rs)];
-            }
-            rd = rs;
-            G[rd].addAttr(code[p].rd);
-            record[*(code[p].rd)] = rd;
+            rs = findNode(code[p].rs);
+            setMap(code[p].rs, rs);
+            setMap(code[p].rd, rs);
         }
         else if (code[p].op == "write_s") {
             IOBuf.emplace_back(make_pair(p, code[p]));
         }
         else if (code[p].op == "write_e") {
-            if (record.count(*(code[p].rd)) == 0) {
-                rd = G.size();
-                G.emplace_back(DAGNode(rd, code[p].rd));
-                record.emplace(*(code[p].rd), rd);
-            }
-            else {
-                rd = record[*(code[p].rd)];
-            }
+            rd = findNode(code[p].rd);
             t = G.size();
-            G.emplace_back(DAGNode(t, new Value("~write_e", "cmd"), "write_e", rd, p));
-            G[rd].moreFa(); G[t].addSon(rd);
+            G.emplace_back(DAGNode(t, "write_e", new Value("~write_e", "cmd"), rd, p));
+            G[rd].moreFa();
         }
         else if (code[p].op == "read") {
-            if (record.count(*(code[p].rd)) == 0) {
-                rd = G.size();
-                G.emplace_back(DAGNode(rd, code[p].rd));
-                record.emplace(*(code[p].rd), rd);
-            }
-            else {
-                rd = record[*(code[p].rd)];
-            }
+            rd = findNode(code[p].rd);
             t = G.size();
-            G.emplace_back(DAGNode(t, code[p].rd, "read", rd, p));
-            G[rd].moreFa(); G[t].addSon(rd);
-            record[*(code[p].rd)] = t;
+            G.emplace_back(DAGNode(t, "read", code[p].rd, rd, p));
+            G[rd].moreFa();
+            setMap(code[p].rd, t);
         }
     }
     this->t = p;
 }
 
-void BasicBlock::solveDAG() {
-    for (auto && node: G) {
-        node.finalizeAttr();
+int BasicBlock::findNode(Value *val) {
+    int k = record.count(*val);
+    if (k == 0) {
+        k = G.size();
+        G.emplace_back(DAGNode(k, val));
+        return k;
     }
+    else {
+        return record[*val];
+    }
+}
+
+int BasicBlock::findNode(std::string op, Value *val, int rs, int rt) {
+    // find op and target.
+    auto iter = std::find_if(G.begin(), G.end(), [&](DAGNode & node) {
+        return op == node.op && rs == node.lhs && rt == node.rhs;
+    });
+    if (iter != G.end()) {
+        return iter - G.begin();
+    }
+    else {
+        int k = G.size();
+        G.emplace_back(DAGNode(k, op, val, rs, rt));
+        G[rs].moreFa(); G[rt].moreFa();
+        return k;
+    }
+}
+
+void BasicBlock::setMap(Value *val, int node) {
+    auto iter = record.find(*val);
+    if (iter == record.end()) {
+        record[*val] = node;
+        G[node].addItem(val);
+    }
+    else if (iter->second == node) {
+        return;
+    }
+    else {
+        auto it = G[iter->second].items.begin();
+        while (it != G[iter->second].items.end()) {
+            if (*(*it) == *val) {
+                for (auto && g: G) {
+        cout << ";; " << g.str() << endl;
+    }
+                std::cout << ";; !!!!!!!!!   ERASE " << endl;
+                it = G[iter->second].items.erase(it);
+                for (auto && g: G) {
+        cout << ";; " << g.str() << endl;
+    }
+            }
+            else {
+                it++;
+            }
+        }
+        record[*val] = node;
+        G[node].addItem(val);
+    }
+}
+
+void BasicBlock::solveDAG() {
     for (auto && g: G) {
         cout << ";; " << g.str() << endl;
     }
-    std::vector<int> Q;
-    while (Q.size() < G.size()) {
-        int sel = 0, p = -1;
-        for (p = G.size() - 1; p >= 0; --p) {
-            if (!G[p].used && G[p].noFa()) { sel = p; break; }
-        }
-        Q.emplace(Q.begin(), sel); G[sel].used = true;
-        for (auto && s: G[sel].sons) {
-            G[s].lessFa();
-        }
-
-        // Why the heuristic ordering will fail for the following case:
-        //
-        //      t = a
-        //      a = b
-        //      b = t
-
-        // int l = G[sel].lhs;
-        // while (l != -1 && !G[l].used && G[l].noFa()) {
-        //     Q.emplace(Q.begin(), l); G[l].used = true;
-        //     for (auto && s: G[l].sons) {
-        //         G[s].lessFa();
-        //     }
-        //     l = G[l].lhs;
-        // }
+    for (auto && t: record) {
+        cout << ";; " << t.first.str() << "   " << t.second << endl;
     }
+
     std::vector<TAC> irs;
     for (int i = 0; i < this->s; ++i) {
         irs.emplace_back(this->code[i]);
     }
-    for (auto && nno: Q) {
-        if (G[nno].lhs != -1 || G[nno].rhs != -1) {
-            if (G[nno].op == "=") {
-                irs.emplace_back(TAC(G[nno].op, G[nno].attr[0], G[G[nno].lhs].attr[0]));
-            }
-            else if (G[nno].op == "read") {
-                while (!this->IOBuf.empty()) {
-                    if (this->IOBuf[0].first < G[nno].rhs) {
-                        irs.emplace_back(this->IOBuf[0].second);
-                        this->IOBuf.erase(IOBuf.begin());
-                    }
-                    else {
-                        break;
-                    }
+    std::vector<int> stack;
+    std::vector<DAGNode> t_nodes = G;
+
+    while (!t_nodes.empty()) {
+        auto iter = t_nodes.rbegin();
+        bool flag = true;
+        while (iter != t_nodes.rend()) {
+            DAGNode & node = *iter;
+            if (node.ready()) {
+                stack.push_back(node.no);
+                if (node.lhs != -1) {
+                    t_nodes[node.lhs].lessFa();
                 }
-                irs.emplace_back(TAC("read", G[G[nno].lhs].attr[0]));
-            }
-            else if (G[nno].op == "write_e") {
-                while (!this->IOBuf.empty()) {
-                    if (this->IOBuf[0].first < G[nno].rhs) {
-                        irs.emplace_back(this->IOBuf[0].second);
-                        this->IOBuf.erase(IOBuf.begin());
-                    }
-                    else {
-                        break;
-                    }
+                cout << ";; node no: " << node.no << endl;
+                if (node.op != "write_e" && node.op != "read" && node.rhs != -1) {
+                    t_nodes[node.rhs].lessFa();
                 }
-                irs.emplace_back(TAC("write_e", G[G[nno].lhs].attr[0]));
+                t_nodes.erase((++iter).base());
+                flag = false;
+                break;
             }
             else {
-                irs.emplace_back(TAC(G[nno].op, G[nno].attr[0], G[G[nno].lhs].attr[0], G[G[nno].rhs].attr[0]));
+                iter++;
             }
         }
-        else {
-            // DO NOTHING.
+        if (flag) {
+            std::cout << ";; DAG graph export warning: Circle found." << std::endl;
+            break;
         }
-        if (G[nno].attr.size() > 1) {
-            for (size_t i = 1; i < G[nno].attr.size(); ++i) {
-                irs.emplace_back(TAC("=", G[nno].attr[i], G[nno].attr[0]));
+    }
+    auto r_iter = stack.rbegin();
+    while (r_iter != stack.rend()) {
+        int node = *r_iter;
+        releaseLeaf(irs, G[node].item);
+
+        std::cout << ";; after release " << endl;
+        for (auto && g: G) {
+        cout << ";; " << g.str() << endl;
+    }
+
+        r_iter++;
+    }
+
+    std::cout << ";; #@@@@@@@@@##########@@@@@   " << irs.size() << std::endl;
+
+    r_iter = stack.rbegin();
+    while (r_iter != stack.rend()) {
+        int node = *r_iter;
+        if (!G[node].leaf) {
+            this->trans(irs, node);
+        }
+        auto iter = G[node].items.begin();
+        while (iter != G[node].items.end()) {
+            if (*iter != G[node].item && (*iter)->t != Value::TYPE::IMM) {
+                irs.push_back(TAC("=", *iter, G[node].item));
+                std::cout << ";; " << (*iter)->str() << "   ###   " << G[node].item->str() << endl;
             }
+            iter++;
         }
+        r_iter++;
     }
     while (!this->IOBuf.empty()) {
         irs.emplace_back(this->IOBuf[0].second);
@@ -226,6 +229,61 @@ void BasicBlock::solveDAG() {
         irs.emplace_back(this->code[i]);
     }
     this->code.swap(irs);
+}
+
+void BasicBlock::trans(std::vector<TAC> & irs, int nno) {
+    if (G[nno].op == "=") {
+        irs.emplace_back(TAC(G[nno].op, G[nno].item, G[G[nno].lhs].item));
+    }
+    else if (G[nno].op == "read") {
+        while (!this->IOBuf.empty()) {
+            if (this->IOBuf[0].first < G[nno].rhs) {
+                irs.emplace_back(this->IOBuf[0].second);
+                this->IOBuf.erase(IOBuf.begin());
+            }
+            else {
+                break;
+            }
+        }
+        irs.emplace_back(TAC("read", G[G[nno].lhs].item));
+    }
+    else if (G[nno].op == "write_e") {
+        while (!this->IOBuf.empty()) {
+            if (this->IOBuf[0].first < G[nno].rhs) {
+                irs.emplace_back(this->IOBuf[0].second);
+                this->IOBuf.erase(IOBuf.begin());
+            }
+            else {
+                break;
+            }
+        }
+        irs.emplace_back(TAC("write_e", G[G[nno].lhs].item));
+    }
+    else {
+        irs.emplace_back(TAC(G[nno].op, G[nno].item, G[G[nno].lhs].item, G[G[nno].rhs].item));
+    }
+}
+
+void BasicBlock::releaseLeaf(std::vector<TAC> & irs, Value *item) {
+    auto iter = G.begin();
+    while (iter != G.end()) {
+        DAGNode & node = *iter; // reference.
+        if (node.leaf && record[*item] != node.no) {
+                std::cout << ";; " << node.item->str() << "   &&&&   " << item->str() << "    " << record[*item] << "   "<< node.no << endl;
+
+            if (node.item == item && !node.items.empty()) {
+                auto i_iter = node.items.begin();
+                node.item = *i_iter;
+                node.items.erase(i_iter);
+                releaseLeaf(irs, node.item);
+                if (node.item->str() != item->str()) {
+                    irs.push_back(TAC("=", node.item, item));
+                    std::cout << ";; " << node.item->str() << "   ^^^   " << item->str() << endl;
+                }
+            }
+        }
+        iter++;
+    }
 }
 
 // Common subexpression elimination (via DAG)
