@@ -65,9 +65,16 @@ void BasicBlock::buildDAG() {
             setMap(code[p].rd, rd);
         }
         else if (code[p].op == "=") {
+            // rs = findNode(code[p].rs);
+            // setMap(code[p].rs, rs);
+            // setMap(code[p].rd, rs);
+            code[p].rt = new Value(0, "integer");
             rs = findNode(code[p].rs);
             setMap(code[p].rs, rs);
-            setMap(code[p].rd, rs);
+            rt = findNode(code[p].rt);
+            setMap(code[p].rt, rt);
+            rd = findNode(code[p].op, code[p].rd, rs, rt);
+            setMap(code[p].rd, rd);
         }
         else if (code[p].op == "write_s") {
             IOBuf.emplace_back(make_pair(p, code[p]));
@@ -130,14 +137,7 @@ void BasicBlock::setMap(Value *val, int node) {
         auto it = G[iter->second].items.begin();
         while (it != G[iter->second].items.end()) {
             if (*(*it) == *val) {
-                for (auto && g: G) {
-        cout << ";; " << g.str() << endl;
-    }
-                std::cout << ";; !!!!!!!!!   ERASE " << endl;
                 it = G[iter->second].items.erase(it);
-                for (auto && g: G) {
-        cout << ";; " << g.str() << endl;
-    }
             }
             else {
                 it++;
@@ -149,13 +149,6 @@ void BasicBlock::setMap(Value *val, int node) {
 }
 
 void BasicBlock::solveDAG() {
-    for (auto && g: G) {
-        cout << ";; " << g.str() << endl;
-    }
-    for (auto && t: record) {
-        cout << ";; " << t.first.str() << "   " << t.second << endl;
-    }
-
     std::vector<TAC> irs;
     for (int i = 0; i < this->s; ++i) {
         irs.emplace_back(this->code[i]);
@@ -173,7 +166,6 @@ void BasicBlock::solveDAG() {
                 if (node.lhs != -1) {
                     t_nodes[node.lhs].lessFa();
                 }
-                cout << ";; node no: " << node.no << endl;
                 if (node.op != "write_e" && node.op != "read" && node.rhs != -1) {
                     t_nodes[node.rhs].lessFa();
                 }
@@ -194,16 +186,8 @@ void BasicBlock::solveDAG() {
     while (r_iter != stack.rend()) {
         int node = *r_iter;
         releaseLeaf(irs, G[node].item);
-
-        std::cout << ";; after release " << endl;
-        for (auto && g: G) {
-        cout << ";; " << g.str() << endl;
-    }
-
         r_iter++;
     }
-
-    std::cout << ";; #@@@@@@@@@##########@@@@@   " << irs.size() << std::endl;
 
     r_iter = stack.rbegin();
     while (r_iter != stack.rend()) {
@@ -215,7 +199,6 @@ void BasicBlock::solveDAG() {
         while (iter != G[node].items.end()) {
             if (*iter != G[node].item && (*iter)->t != Value::TYPE::IMM) {
                 irs.push_back(TAC("=", *iter, G[node].item));
-                std::cout << ";; " << (*iter)->str() << "   ###   " << G[node].item->str() << endl;
             }
             iter++;
         }
@@ -269,8 +252,6 @@ void BasicBlock::releaseLeaf(std::vector<TAC> & irs, Value *item) {
     while (iter != G.end()) {
         DAGNode & node = *iter; // reference.
         if (node.leaf && record[*item] != node.no) {
-                std::cout << ";; " << node.item->str() << "   &&&&   " << item->str() << "    " << record[*item] << "   "<< node.no << endl;
-
             if (node.item == item && !node.items.empty()) {
                 auto i_iter = node.items.begin();
                 node.item = *i_iter;
@@ -278,7 +259,6 @@ void BasicBlock::releaseLeaf(std::vector<TAC> & irs, Value *item) {
                 releaseLeaf(irs, node.item);
                 if (node.item->str() != item->str()) {
                     irs.push_back(TAC("=", node.item, item));
-                    std::cout << ";; " << node.item->str() << "   ^^^   " << item->str() << endl;
                 }
             }
         }

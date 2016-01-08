@@ -24,6 +24,13 @@ input_t *load_case(char const *fname) {
 }
 
 int main(int argc, char **argv) {
+    bool opt;
+    if (argc == 3 && string(argv[2]) == "-O") {
+        opt = true;
+    }
+    else {
+        opt = false;
+    }
     auto parse_tool = ParsecT<decltype(pl0_program)>(pl0_program);
     input_t *in = load_case(argv[1]);
     auto res = parse_tool(in);
@@ -45,9 +52,11 @@ int main(int argc, char **argv) {
     pl0_block(irb.irs, bbs);
     for (auto && bb: bbs) {
         bb.dump();
-        cout << ";;;;;;;;;;;;;;;;;;;;;DO DAG Pass" << endl;
-        bb.DAGPass();
-        bb.dump();
+        if (opt) {
+            cout << ";;;;;;;;;;;;;;;;;;;;;DO DAG Pass" << endl;
+            bb.DAGPass();
+            bb.dump();
+        }
     }
 
     cout << "\n;; <<<<<<<<<<<<<  Assembly (Intel syntax, nasm)   <<<<<<<<<<<<\n" << endl;
