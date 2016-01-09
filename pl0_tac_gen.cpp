@@ -388,6 +388,9 @@ void pl0_tac_call_proc(pl0_ast_call_proc const *stmt) {
     }
     proc p;
     proctb.find(stmt->id->id, true, p);
+    if (p.name.length() == 0) {
+        pl0_ast_error(stmt->id->loc, "use of undeclared identifier '" + stmt->id->id + "'");
+    }
     std::vector<std::pair<Value *, bool>> pushes; // <Value * val, bool is_ref>
     if (args.size() != p.param_t.size()) {
         pl0_ast_error(stmt->args->loc, string("unmatched number of parameters and arguments."));
@@ -647,7 +650,6 @@ pair<Value *, string> pl0_tac_call_func(pl0_ast_call_func const *stmt) {
             return make_pair(new Value(var.name, var.dt), var.type);
         }
     }
-
     if (!functb.find(fid, true)) {
         pl0_ast_error(stmt->loc, string("use of undeclared identifier ") + "\"" + fid + "\"");
     }
