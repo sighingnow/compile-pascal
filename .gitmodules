@@ -1,3 +1,0 @@
-[submodule "libparsec"]
-	path = libparsec
-	url = git@github.com:sighingnow/libparsec.git
