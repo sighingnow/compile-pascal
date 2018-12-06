@@ -123,7 +123,7 @@ Reading list
 1. [Haskell Parsec](https://wiki.haskell.org/parsec)
 2. [Combinator Parsing: A Short Tutorial](http://www.cs.uu.nl/research/techreps/repo/CS-2008/2008-044.pdf) by _S. Doaitse Swierstra_
 3. [Monadic Parser Combinators](http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf) by _Graham Hutton_ and _Erik Meijer_
-4, [Parsec, a fast combinator parser](http://research.microsoft.com/en-us/um/people/daan/download/parsec/parsec.pdf) by _DAAN LEIJEN_
+4. [Parsec, a fast combinator parser](http://research.microsoft.com/en-us/um/people/daan/download/parsec/parsec.pdf) by _DAAN LEIJEN_
 
 Licence
 --------
